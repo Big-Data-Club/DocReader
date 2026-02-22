@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "doc-reader"
+version = "0.1.0"
+description = "Personal document reader with RAG + Knowledge Graph"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.9",
+    "kreuzberg[all]>=4.3.0",
+    "minio>=7.2.0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0.0",
+    "groq>=0.11.0",
+    "kuzu>=0.6.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "aiofiles>=24.0.0",
+    "networkx>=3.3",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.uv]
+dev-dependencies = []

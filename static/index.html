@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doc Reader</title>
+<style>
+:root {
+  --bg:#0f0f13;--surface:#17171f;--surface2:#1f1f2a;--border:#2a2a3a;
+  --accent:#7c6ff7;--accent2:#4ecdc4;--text:#e8e8f0;--text2:#9090aa;
+  --danger:#f06060;--success:#50c878;--user-bubble:#2a2050;--bot-bubble:#1a1a2a;
+  --cite-bg:rgba(124,111,247,.15);--cite-border:rgba(124,111,247,.4);
+  --highlight-bg:rgba(124,111,247,.2);--highlight-border:#7c6ff7;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;height:100vh;overflow:hidden;}
+.app{display:grid;grid-template-columns:220px 1fr;height:100vh;}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.logo{padding:16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.logo h1{font-size:1rem;font-weight:700;color:var(--accent);}
+.logo p{font-size:.7rem;color:var(--text2);margin-top:2px;}
+.nav{padding:8px;flex-shrink:0;}
+.nav-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;background:none;border:none;
+  color:var(--text2);cursor:pointer;font-size:.82rem;border-radius:6px;text-align:left;transition:.15s;}
+.nav-btn:hover,.nav-btn.active{background:var(--surface2);color:var(--text);}
+.nav-btn.active{color:var(--accent);}
+
+/* ── Conversation list ── */
+.conv-section{flex:1;overflow-y:auto;padding:8px;}
+.conv-header{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 8px;}
+.conv-header span{font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);}
+.new-conv-btn{background:var(--accent);border:none;color:#fff;border-radius:5px;padding:3px 8px;
+  font-size:.72rem;cursor:pointer;font-weight:600;}
+.conv-item{padding:8px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;color:var(--text2);
+  margin-bottom:2px;transition:.15s;display:flex;align-items:center;gap:6px;position:relative;}
+.conv-item:hover{background:var(--surface2);color:var(--text);}
+.conv-item.active{background:rgba(124,111,247,.15);color:var(--accent);}
+.conv-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.conv-del{opacity:0;border:none;background:none;color:var(--danger);cursor:pointer;padding:2px 4px;font-size:.8rem;}
+.conv-item:hover .conv-del{opacity:1;}
+.conv-date{font-size:.65rem;color:var(--text2);}
+
+/* ── Docs mini list ── */
+.docs-mini{padding:8px;border-top:1px solid var(--border);flex-shrink:0;max-height:160px;overflow-y:auto;}
+.docs-mini-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);padding:4px 6px;}
+.doc-chip{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;
+  font-size:.78rem;color:var(--text2);transition:.15s;}
+.doc-chip:hover{background:var(--surface2);color:var(--text);}
+.doc-chip.selected{color:var(--accent);}
+
+/* ── Main area ── */
+.main{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+/* ── Top toolbar ── */
+.toolbar{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.toolbar-title{font-size:.9rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.doc-filter{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:6px;padding:5px 10px;font-size:.78rem;outline:none;cursor:pointer;}
+.doc-filter:focus{border-color:var(--accent);}
+.tab-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:none;
+  color:var(--text2);cursor:pointer;font-size:.78rem;transition:.15s;}
+.tab-btn:hover,.tab-btn.active{background:var(--surface2);color:var(--text);border-color:var(--accent);}
+
+/* ── Panel container ── */
+.panels{flex:1;overflow:hidden;position:relative;}
+.panel{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+
+/* ── Chat panel ── */
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;}
+.msg{display:flex;flex-direction:column;max-width:80%;}
+.msg.user{align-self:flex-end;align-items:flex-end;}
+.msg.assistant{align-self:flex-start;align-items:flex-start;}
+.bubble{padding:12px 16px;border-radius:14px;font-size:.88rem;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.msg.user .bubble{background:var(--user-bubble);border-bottom-right-radius:3px;}
+.msg.assistant .bubble{background:var(--bot-bubble);border:1px solid var(--border);border-bottom-left-radius:3px;}
+.msg-meta{font-size:.68rem;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.badge-hist{background:rgba(124,111,247,.2);color:var(--accent);border-radius:3px;padding:1px 5px;font-size:.65rem;}
+.reasoning-block{background:rgba(78,205,196,.05);border:1px solid rgba(78,205,196,.2);border-radius:8px;
+  padding:10px;margin-top:8px;font-size:.78rem;color:var(--text2);}
+
+/* ── Inline citation number in answer text ── */
+.cite-ref{display:inline-flex;align-items:center;justify-content:center;
+  background:var(--cite-bg);border:1px solid var(--cite-border);
+  color:var(--accent);border-radius:4px;font-size:.65rem;font-weight:700;
+  padding:0 4px;min-width:18px;height:16px;cursor:pointer;vertical-align:middle;
+  margin:0 1px;transition:.15s;line-height:1;}
+.cite-ref:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* ── Sources panel below answer ── */
+.sources-section{margin-top:10px;}
+.sources-header{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+.sources-header-label{font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:5px;}
+.sources-header-label .cnt{background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:1px 7px;font-size:.65rem;color:var(--accent2);}
+.sources-chevron{font-size:.65rem;color:var(--text2);transition:transform .2s;}
+.sources-chevron.open{transform:rotate(180deg);}
+.sources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px;}
+.source-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;cursor:pointer;transition:.15s;position:relative;overflow:hidden;}
+.source-card:hover{border-color:var(--accent);background:rgba(124,111,247,.07);}
+.source-card::before{content:attr(data-num);position:absolute;top:8px;right:10px;
+  font-size:.65rem;font-weight:700;color:var(--accent);background:var(--cite-bg);
+  border:1px solid var(--cite-border);border-radius:4px;padding:1px 5px;}
+.sc-file{font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:28px;}
+.sc-loc{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
+.sc-tag{font-size:.65rem;padding:2px 6px;border-radius:3px;display:inline-flex;align-items:center;gap:3px;}
+.sc-tag.page{background:rgba(80,200,120,.15);color:#50c878;}
+.sc-tag.section{background:rgba(78,205,196,.1);color:var(--accent2);max-width:140px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sc-tag.chars{background:rgba(180,180,200,.1);color:var(--text2);}
+.sc-score{display:flex;gap:8px;align-items:center;margin-bottom:7px;}
+.sc-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.sc-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent2),var(--accent));}
+.sc-score-num{font-size:.65rem;color:var(--text2);white-space:nowrap;}
+.sc-excerpt{font-size:.72rem;color:var(--text2);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.sc-open-btn{margin-top:7px;font-size:.68rem;color:var(--accent);display:flex;align-items:center;gap:3px;}
+
+/* ── Query bundle strip ── */
+.query-bundle{margin-top:8px;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.qb-header{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;
+  background:var(--surface2);font-size:.7rem;color:var(--text2);}
+.qb-header:hover{color:var(--text);}
+.qb-body{padding:10px;display:none;background:var(--surface);border-top:1px solid var(--border);}
+.qb-body.open{display:block;}
+.qb-row{margin-bottom:7px;}
+.qb-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:3px;}
+.qb-val{font-size:.74rem;color:var(--text);background:var(--surface2);border-radius:4px;padding:4px 8px;
+  border-left:2px solid var(--accent);}
+.qb-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:2px 7px;font-size:.68rem;color:var(--text2);margin:2px;}
+
+/* ── Passage viewer modal ── */
+.pv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;
+  display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;
+  pointer-events:none;transition:opacity .2s;}
+.pv-overlay.open{opacity:1;pointer-events:all;}
+.pv-modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  width:min(700px,100%);max-height:85vh;display:flex;flex-direction:column;
+  transform:translateY(20px);transition:transform .2s;}
+.pv-overlay.open .pv-modal{transform:translateY(0);}
+.pv-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.pv-title{font-size:.92rem;font-weight:700;margin-bottom:4px;}
+.pv-meta{display:flex;flex-wrap:wrap;gap:6px;}
+.pv-body{flex:1;overflow-y:auto;padding:16px 20px;}
+.pv-chunk{border-radius:8px;padding:12px 14px;margin-bottom:10px;
+  font-size:.82rem;line-height:1.7;white-space:pre-wrap;word-break:break-word;
+  border:1px solid var(--border);color:var(--text2);}
+.pv-chunk.target{background:var(--highlight-bg);border-color:var(--highlight-border);
+  color:var(--text);box-shadow:0 0 0 1px rgba(124,111,247,.2);}
+.pv-chunk-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.pv-chunk.target .pv-chunk-label{color:var(--accent);}
+.pv-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;
+  align-items:center;justify-content:space-between;flex-shrink:0;}
+.pv-close{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:7px;padding:7px 16px;cursor:pointer;font-size:.82rem;transition:.15s;}
+.pv-close:hover{border-color:var(--accent);}
+.typing{display:flex;gap:4px;align-items:center;padding:14px 16px;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text2);animation:bounce .9s infinite;}
+.dot:nth-child(2){animation-delay:.15s;}.dot:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-6px);}}
+
+/* ── Chat input ── */
+.chat-input-area{padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
+.input-options{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;}
+.toggle{display:flex;align-items:center;gap:5px;font-size:.76rem;color:var(--text2);cursor:pointer;}
+.toggle input{accent-color:var(--accent);}
+.input-row{display:flex;gap:8px;align-items:flex-end;}
+textarea.msg-input{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:10px;padding:10px 14px;font-size:.88rem;font-family:inherit;resize:none;outline:none;
+  transition:.15s;min-height:44px;max-height:160px;line-height:1.5;}
+textarea.msg-input:focus{border-color:var(--accent);}
+.send-btn{background:var(--accent);border:none;color:#fff;border-radius:10px;padding:10px 16px;
+  cursor:pointer;font-size:.88rem;font-weight:600;white-space:nowrap;transition:.15s;align-self:flex-end;}
+.send-btn:hover{background:#6b5fe6;}.send-btn:disabled{opacity:.5;cursor:not-allowed;}
+.speak-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:10px;
+  padding:10px 12px;cursor:pointer;font-size:.9rem;transition:.15s;align-self:flex-end;}
+.speak-btn:hover{border-color:var(--accent);color:var(--accent);}
+audio.inline-audio{width:100%;margin-top:8px;border-radius:6px;}
+
+/* ── Upload / Tools panels ── */
+.tools-scroll{flex:1;overflow-y:auto;padding:20px;}
+.panel-h{font-size:1.1rem;font-weight:700;margin-bottom:4px;}
+.panel-sub{color:var(--text2);font-size:.82rem;margin-bottom:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:14px;}
+.card-t{font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px;}
+.upload-zone{border:2px dashed var(--border);border-radius:10px;padding:40px;text-align:center;
+  cursor:pointer;transition:.2s;position:relative;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(124,111,247,.05);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+textarea.tool-ta,input.tool-in,select.tool-sel{width:100%;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;padding:9px 12px;font-size:.85rem;font-family:inherit;
+  resize:vertical;outline:none;transition:.15s;}
+textarea.tool-ta:focus,input.tool-in:focus,select.tool-sel:focus{border-color:var(--accent);}
+textarea.tool-ta{min-height:72px;}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;
+  display:inline-flex;align-items:center;gap:5px;transition:.15s;}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#6b5fe6;}
+.btn-s{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-s:hover{border-color:var(--accent);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+pre.json-out{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;
+  font-size:.78rem;overflow:auto;max-height:300px;color:var(--accent2);}
+.progress{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:10px;}
+.progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;}
+.entity-tag{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:4px;font-size:.72rem;margin:2px;}
+.type-PERSON{background:rgba(124,111,247,.2);color:#a89ff7;}
+.type-ORGANIZATION{background:rgba(247,200,71,.2);color:#f7c847;}
+.type-CONCEPT{background:rgba(78,205,196,.2);color:var(--accent2);}
+.type-TECHNOLOGY{background:rgba(80,200,120,.2);color:#50c878;}
+.type-PLACE{background:rgba(240,96,96,.2);color:#f09090;}
+.type-DATE,.type-TOPIC{background:rgba(180,180,200,.2);color:#c0c0d0;}
+.schema-field{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+.schema-field input{flex:1;}.schema-field select{width:90px;flex:0 0 90px;}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+.stat-card{background:var(--surface2);border-radius:8px;padding:12px;text-align:center;}
+.stat-num{font-size:1.4rem;font-weight:700;color:var(--accent);}
+.stat-label{font-size:.68rem;color:var(--text2);margin-top:2px;}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:10px 16px;font-size:.82rem;opacity:0;transition:.2s;z-index:100;}
+#toast.show{opacity:1;}#toast.success{border-color:var(--success);}#toast.error{border-color:var(--danger);}
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;
+  border-radius:50%;animation:spin .6s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="logo"><h1>📚 Doc Reader</h1><p>Personal Knowledge Base</p></div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showTab('chat',this)">💬 Chat</button>
+    <button class="nav-btn" onclick="showTab('upload',this)">⬆️ Upload</button>
+    <button class="nav-btn" onclick="showTab('structured',this)">🗂️ Extract</button>
+    <button class="nav-btn" onclick="showTab('graph',this)">🕸️ Graph</button>
+    <button class="nav-btn" onclick="showTab('tts',this)">🔊 TTS</button>
+  </nav>
+
+  <!-- Conversation history list -->
+  <div class="conv-section">
+    <div class="conv-header">
+      <span>History</span>
+      <button class="new-conv-btn" onclick="newConversation()">+ New</button>
+    </div>
+    <div id="conv-list"></div>
+  </div>
+
+  <!-- Documents mini list -->
+  <div class="docs-mini">
+    <div class="docs-mini-title">Documents</div>
+    <div id="docs-mini-list"></div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-title" id="toolbar-title">Select a conversation</div>
+    <select class="doc-filter" id="doc-filter" title="Filter by document">
+      <option value="">All documents</option>
+    </select>
+    <button class="tab-btn active" id="tb-chat" onclick="showTab('chat',null,'chat')">💬 Chat</button>
+    <button class="tab-btn" id="tb-upload" onclick="showTab('upload',null,'upload')">⬆️ Upload</button>
+    <button class="tab-btn" id="tb-structured" onclick="showTab('structured',null,'structured')">🗂️ Extract</button>
+    <button class="tab-btn" id="tb-graph" onclick="showTab('graph',null,'graph')">🕸️ Graph</button>
+    <button class="tab-btn" id="tb-tts" onclick="showTab('tts',null,'tts')">🔊 TTS</button>
+  </div>
+
+  <div class="panels">
+
+    <!-- ── Chat panel ── -->
+    <div class="panel active" id="panel-chat">
+      <div class="chat-messages" id="chat-messages">
+        <div style="text-align:center;color:var(--text2);font-size:.85rem;margin-top:40px;">
+          <div style="font-size:2rem;margin-bottom:12px;">💬</div>
+          Select a conversation or start a new one.<br>
+          Upload documents first, then ask questions about them.
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="input-options">
+          <label class="toggle"><input type="checkbox" id="use-reasoning"> 🧠 Reasoning mode</label>
+          <span id="hist-badge" style="display:none;" class="badge-hist">📝 History context active</span>
+        </div>
+        <div class="input-row">
+          <textarea class="msg-input" id="msg-input" placeholder="Ask anything about your documents… (Enter to send, Shift+Enter for newline)" rows="1"></textarea>
+          <button class="speak-btn" onclick="speakLastAnswer()" title="Speak last answer">🔊</button>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+        <audio id="chat-audio" class="inline-audio" controls style="display:none;"></audio>
+      </div>
+    </div>
+
+    <!-- ── Upload panel ── -->
+    <div class="panel" id="panel-upload">
+      <div class="tools-scroll">
+        <div class="panel-h">Upload Document</div>
+        <div class="panel-sub">Supported: PDF · DOCX · TXT · MD · HTML · XLSX · PPTX · PNG · JPG</div>
+        <div class="upload-zone" id="upload-zone" ondragover="handleDrag(event)" ondrop="handleDrop(event)" ondragleave="removeDrag()">
+          <input type="file" id="file-input" onchange="uploadFile(this.files[0])">
+          <div style="font-size:2rem;margin-bottom:10px;">📄</div>
+          <p><strong style="color:var(--accent)">Click to browse</strong> or drag & drop</p>
+        </div>
+        <div id="upload-progress" style="display:none;" class="card">
+          <div class="card-t">Processing</div>
+          <div id="upload-steps" style="font-size:.82rem;color:var(--text2);"></div>
+          <div class="progress"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+        </div>
+        <div id="upload-result" style="display:none;" class="card">
+          <div class="card-t">Result</div>
+          <pre class="json-out" id="upload-json"></pre>
+        </div>
+        <div class="stats-row" id="stats-row" style="margin-top:16px;">
+          <div class="stat-card"><div class="stat-num" id="stat-docs">—</div><div class="stat-label">Documents</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-convs">—</div><div class="stat-label">Conversations</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-msgs">—</div><div class="stat-label">Messages</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Structured panel ── -->
+    <div class="panel" id="panel-structured">
+      <div class="tools-scroll">
+        <div class="panel-h">Structured Extraction</div>
+        <div class="panel-sub">Extract data from documents into any JSON schema you define</div>
+        <div class="card"><div class="card-t">Document</div>
+          <select class="tool-sel" id="struct-doc"></select>
+        </div>
+        <div class="card"><div class="card-t">What to extract</div>
+          <textarea class="tool-ta" id="struct-prompt" placeholder="e.g. Extract all people, their roles, and key dates"></textarea>
+        </div>
+        <div class="card">
+          <div class="card-t">Output schema</div>
+          <div id="schema-fields">
+            <div class="schema-field"><input class="tool-in" placeholder="Field name" value="summary"><select class="tool-sel" style="width:90px"><option>string</option><option>array</option><option>number</option><option>boolean</option></select><button class="btn btn-s" onclick="removeField(this)" style="padding:7px 9px;">✕</button></div>
+            <div class="schema-field"><input class="tool-in" placeholder="Field name" value="key_people"><select class="tool-sel" style="width:90px"><option>string</option><option selected>array</option><option>number</option><option>boolean</option></select><button class="btn btn-s" onclick="removeField(this)" style="padding:7px 9px;">✕</button></div>
+          </div>
+          <button class="btn btn-s" onclick="addField()" style="margin-top:6px;font-size:.75rem;">+ Add field</button>
+        </div>
+        <button class="btn btn-p" onclick="runStructured()">🗂️ Extract</button>
+        <div id="struct-result" style="display:none;margin-top:14px;">
+          <pre class="json-out" id="struct-json"></pre>
+          <button class="btn btn-s" onclick="downloadJSON()" style="margin-top:8px;font-size:.75rem;">⬇️ Download JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Graph panel ── -->
+    <div class="panel" id="panel-graph">
+      <div class="tools-scroll">
+        <div class="panel-h">Knowledge Graph</div>
+        <div class="panel-sub">Entities and relationships extracted from documents</div>
+        <div class="card"><div class="card-t">Document</div>
+          <div style="display:flex;gap:8px;">
+            <select class="tool-sel" id="graph-doc" style="flex:1;"></select>
+            <button class="btn btn-p" onclick="loadGraph()">Load</button>
+          </div>
+        </div>
+        <div id="graph-result" style="display:none;">
+          <div class="stats-row">
+            <div class="stat-card"><div class="stat-num" id="g-ents">0</div><div class="stat-label">Entities</div></div>
+            <div class="stat-card"><div class="stat-num" id="g-rels">0</div><div class="stat-label">Relations</div></div>
+            <div class="stat-card"><div class="stat-num" id="g-types">0</div><div class="stat-label">Types</div></div>
+          </div>
+          <div class="card"><div class="card-t">Entities</div><div id="entity-tags"></div></div>
+          <div class="card"><div class="card-t">Relations</div>
+            <div id="rel-list" style="font-size:.8rem;max-height:220px;overflow-y:auto;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TTS panel ── -->
+    <div class="panel" id="panel-tts">
+      <div class="tools-scroll">
+        <div class="panel-h">Text to Speech</div>
+        <div class="panel-sub">Groq Orpheus TTS — high quality English voices</div>
+        <div class="card"><div class="card-t">Voice</div>
+          <select class="tool-sel" id="tts-voice">
+            <option value="autumn">Autumn (Female)</option><option value="diana">Diana (Female)</option>
+            <option value="hannah">Hannah (Female)</option>
+            <option value="austin">Austin (Male)</option><option value="daniel">Daniel (Male)</option>
+            <option value="troy">Troy (Male)</option>
+          </select>
+        </div>
+        <div class="card"><div class="card-t">Text</div>
+          <textarea class="tool-ta" id="tts-text" rows="5" placeholder="Enter text...&#10;Vocal directions: [cheerful] [whisper] [excited] [sad]"></textarea>
+          <div style="font-size:.7rem;color:var(--text2);margin-top:6px;">Directions: [cheerful] [whisper] [excited] [sad] [serious] [laughs]</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-p" onclick="generateTTS()">🎙️ Generate</button>
+          <div id="tts-spinner" style="display:none;"><div class="spinner"></div></div>
+        </div>
+        <audio id="tts-audio" controls style="display:none;margin-top:12px;width:100%;border-radius:6px;"></audio>
+        <button id="tts-dl" onclick="downloadAudio()" class="btn btn-s" style="display:none;margin-top:6px;font-size:.75rem;">⬇️ Download WAV</button>
+      </div>
+    </div>
+
+  </div><!-- /panels -->
+</main>
+</div><!-- /app -->
+<div id="toast"></div>
+
+<!-- ── Passage Viewer Modal ── -->
+<div class="pv-overlay" id="pv-overlay" onclick="closePV(event)">
+  <div class="pv-modal">
+    <div class="pv-header">
+      <div class="pv-title" id="pv-title">Loading passage…</div>
+      <div class="pv-meta" id="pv-meta"></div>
+    </div>
+    <div class="pv-body" id="pv-body">
+      <div style="color:var(--text2);font-size:.85rem;text-align:center;padding:40px 0;">
+        <div class="spinner" style="margin:0 auto 10px;"></div>Loading…
+      </div>
+    </div>
+    <div class="pv-footer">
+      <div id="pv-chars" style="font-size:.72rem;color:var(--text2);"></div>
+      <button class="pv-close" onclick="closePV()">Close ✕</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let documents = [];
+let conversations = [];
+let activeConvId = null;
+let lastAnswer = '';
+let lastAudioBlob = null;
+let currentStructData = null;
+let isSending = false;
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function showTab(name, sideBtn, tbName) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (sideBtn) sideBtn.classList.add('active');
+  const tb = tbName || name;
+  document.getElementById('tb-' + tb)?.classList.add('active');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 3000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fileIcon(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return {pdf:'📕',docx:'📘',doc:'📘',txt:'📄',md:'📝',html:'🌐',xlsx:'📊',pptx:'📋',png:'🖼️',jpg:'🖼️',jpeg:'🖼️'}[ext] || '📄';
+}
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+function fmtScore(s) { return s != null ? Math.round(s * 100) + '%' : '—'; }
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadDocuments(), loadConversations()]);
+}
+async function loadDocuments() {
+  const r = await fetch(`${API}/api/documents`);
+  documents = await r.json();
+  renderDocsMini();
+  updateDocSelects();
+  document.getElementById('stat-docs').textContent = documents.length;
+}
+async function loadConversations() {
+  const r = await fetch(`${API}/api/conversations`);
+  conversations = await r.json();
+  renderConvList();
+  document.getElementById('stat-convs').textContent = conversations.length;
+}
+function renderConvList() {
+  const el = document.getElementById('conv-list');
+  if (!conversations.length) {
+    el.innerHTML = '<div style="padding:6px 8px;font-size:.75rem;color:var(--text2);">No history yet</div>';
+    return;
+  }
+  el.innerHTML = conversations.map(c => `
+    <div class="conv-item ${c.id === activeConvId ? 'active' : ''}" onclick="openConversation('${c.id}')">
+      <span>💬</span>
+      <span class="conv-title" title="${esc(c.title)}">${esc(c.title)}</span>
+      <button class="conv-del" onclick="deleteConv(event,'${c.id}')">✕</button>
+    </div>`).join('');
+}
+function renderDocsMini() {
+  const el = document.getElementById('docs-mini-list');
+  el.innerHTML = documents.map(d => `
+    <div class="doc-chip" onclick="filterByDoc('${d.id}')" title="${esc(d.filename)}">
+      ${fileIcon(d.filename)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(d.filename)}</span>
+    </div>`).join('') || '<div style="font-size:.75rem;color:var(--text2);padding:4px 8px;">No documents</div>';
+}
+function updateDocSelects() {
+  const opts = '<option value="">All documents</option>' + documents.map(d =>
+    `<option value="${d.id}">${esc(d.filename)}</option>`).join('');
+  document.getElementById('doc-filter').innerHTML = opts;
+  const opts2 = '<option value="">Select document...</option>' + documents.map(d =>
+    `<option value="${d.id}">${esc(d.filename)}</option>`).join('');
+  ['struct-doc','graph-doc'].forEach(id => document.getElementById(id).innerHTML = opts2);
+}
+function filterByDoc(docId) {
+  document.getElementById('doc-filter').value = docId;
+  document.querySelectorAll('.doc-chip').forEach(el => el.classList.remove('selected'));
+  const idx = documents.findIndex(d => d.id === docId);
+  if (idx >= 0) document.querySelectorAll('.doc-chip')[idx]?.classList.add('selected');
+}
+
+// ── Conversations ─────────────────────────────────────────────────────────────
+async function newConversation() {
+  const conv = await (await fetch(`${API}/api/conversations`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({title:'New conversation'})
+  })).json();
+  conversations.unshift(conv);
+  renderConvList();
+  openConversation(conv.id);
+  showTab('chat');
+  document.getElementById('msg-input').focus();
+}
+async function openConversation(convId) {
+  activeConvId = convId;
+  const data = await (await fetch(`${API}/api/conversations/${convId}`)).json();
+  document.getElementById('toolbar-title').textContent = data.title;
+  renderMessages(data.messages || []);
+  renderConvList();
+  showTab('chat');
+}
+function renderMessages(messages) {
+  const el = document.getElementById('chat-messages');
+  if (!messages.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text2);font-size:.85rem;margin-top:60px;">No messages yet. Start asking!</div>';
+    return;
+  }
+  el.innerHTML = messages.map(m => buildBubble(m)).join('');
+  el.scrollTop = el.scrollHeight;
+}
+async function deleteConv(e, convId) {
+  e.stopPropagation();
+  await fetch(`${API}/api/conversations/${convId}`, {method:'DELETE'});
+  if (activeConvId === convId) {
+    activeConvId = null;
+    document.getElementById('chat-messages').innerHTML = '';
+    document.getElementById('toolbar-title').textContent = 'Select a conversation';
+  }
+  conversations = conversations.filter(c => c.id !== convId);
+  renderConvList();
+}
+
+// ── Answer text: render [1] [2] citations as clickable badges ─────────────────
+function renderAnswerWithCitations(text, sources) {
+  if (!sources || !sources.length) return `<span>${esc(text)}</span>`;
+  // Replace [N] patterns with clickable badge spans
+  const escaped = esc(text);
+  return escaped.replace(/\[(\d+)\]/g, (match, num) => {
+    const n = parseInt(num);
+    const src = sources.find(s => s.citation_number === n);
+    if (!src) return match;
+    return `<span class="cite-ref" onclick="openPassage('${src.doc_id}',${src.chunk_index},${src.citation_number})" title="Click to view passage from ${esc(src.filename)}">${n}</span>`;
+  });
+}
+
+// ── Build a chat bubble with rich source citations ─────────────────────────────
+function buildBubble(m) {
+  const isUser = m.role === 'user';
+  const meta = m.metadata || {};
+  // sources may be full objects (live) or simplified (from history)
+  const sources = (meta.sources || []);
+  const queryBundle = meta.query_bundle || null;
+  const uid = m.id || ('m-' + Date.now() + Math.random());
+
+  let contentHtml;
+  if (isUser) {
+    contentHtml = `<span>${esc(m.content)}</span>`;
+  } else {
+    // Render answer with inline citation refs
+    contentHtml = renderAnswerWithCitations(m.content, sources);
+  }
+
+  // Source cards (only if sources have full metadata)
+  let sourcesHtml = '';
+  if (!isUser && sources.length) {
+    const sid = `src-${uid}`;
+    const chev = `<span class="sources-chevron" id="chev-${sid}">▼</span>`;
+    const hasFullMeta = sources[0].chunk_index != null;
+
+    const cards = sources.map(s => {
+      const score = s.rerank_score ?? s.score ?? 0;
+      const barW = Math.round(score * 100);
+      const section = s.section ? `<span class="sc-tag section" title="${esc(s.section)}">§ ${esc(s.section)}</span>` : '';
+      const page = s.page_estimate ? `<span class="sc-tag page">p.${s.page_estimate}</span>` : '';
+      const chars = (s.start_char != null)
+        ? `<span class="sc-tag chars">${s.start_char}–${s.end_char}</span>` : '';
+      const excerpt = s.text ? `<div class="sc-excerpt">${esc(s.text)}</div>` : '';
+      const openBtn = hasFullMeta && s.doc_id
+        ? `<div class="sc-open-btn">📖 View passage</div>` : '';
+      const onclick = hasFullMeta && s.doc_id
+        ? `onclick="openPassage('${s.doc_id}',${s.chunk_index},${s.citation_number})"` : '';
+
+      return `<div class="source-card" data-num="[${s.citation_number ?? '?'}]" ${onclick}>
+        <div class="sc-file">${fileIcon(s.filename||'')} ${esc(s.filename||'Unknown')}</div>
+        <div class="sc-loc">${page}${section}${chars}</div>
+        <div class="sc-score">
+          <div class="sc-bar-wrap"><div class="sc-bar" style="width:${barW}%"></div></div>
+          <span class="sc-score-num">${barW}% match</span>
+        </div>
+        ${excerpt}${openBtn}
+      </div>`;
+    }).join('');
+
+    sourcesHtml = `
+      <div class="sources-section">
+        <div class="sources-header" onclick="toggleSrc('${sid}')">
+          <div class="sources-header-label">
+            📎 Sources <span class="cnt">${sources.length}</span>
+          </div>${chev}
+        </div>
+        <div id="${sid}" class="sources-grid" style="display:none;">
+          ${cards}
+        </div>
+      </div>`;
+  }
+
+  // Query bundle (only present on live responses with full data)
+  let bundleHtml = '';
+  if (!isUser && queryBundle && (queryBundle.multi?.length > 1 || queryBundle.hyde || queryBundle.stepback)) {
+    const bid = `qb-${uid}`;
+    const multiPills = (queryBundle.multi||[]).slice(1).map(q =>
+      `<span class="qb-pill">${esc(q)}</span>`).join('');
+    const hydeRow = queryBundle.hyde
+      ? `<div class="qb-row"><div class="qb-label">🔬 HyDE passage</div><div class="qb-val">${esc(queryBundle.hyde)}</div></div>` : '';
+    const stepRow = queryBundle.stepback
+      ? `<div class="qb-row"><div class="qb-label">⬆️ Step-back query</div><div class="qb-val">${esc(queryBundle.stepback)}</div></div>` : '';
+    const multiRow = multiPills
+      ? `<div class="qb-row"><div class="qb-label">🔀 Query variants</div><div>${multiPills}</div></div>` : '';
+    bundleHtml = `
+      <div class="query-bundle">
+        <div class="qb-header" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.sources-chevron').classList.toggle('open')">
+          🔍 Query rewriting used &nbsp;<span class="sources-chevron">▼</span>
+        </div>
+        <div class="qb-body" id="${bid}">
+          ${multiRow}${hydeRow}${stepRow}
+        </div>
+      </div>`;
+  }
+
+  return `<div class="msg ${m.role}">
+    <div class="bubble" style="line-height:1.7;">${contentHtml}</div>
+    ${sourcesHtml}
+    ${bundleHtml}
+    <div class="msg-meta">
+      <span>${isUser ? '🧑' : '🤖'} ${fmtTime(m.created_at)}</span>
+    </div>
+  </div>`;
+}
+
+function toggleSrc(sid) {
+  const el = document.getElementById(sid);
+  const chev = document.getElementById('chev-' + sid);
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'grid';
+  if (chev) chev.classList.toggle('open', !open);
+}
+
+// ── Send message ──────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const query = input.value.trim();
+  if (!query || isSending) return;
+
+  if (!activeConvId) {
+    const conv = await (await fetch(`${API}/api/conversations`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({title: query.slice(0, 50)})
+    })).json();
+    activeConvId = conv.id;
+    conversations.unshift(conv);
+    renderConvList();
+  }
+
+  const docId = document.getElementById('doc-filter').value || null;
+  const reasoning = document.getElementById('use-reasoning').checked;
+
+  appendBubble({role:'user', content:query, created_at:new Date().toISOString(), id:'tmp-u'});
+  input.value = '';
+  input.style.height = 'auto';
+
+  const typingId = 'typing-' + Date.now();
+  appendTyping(typingId);
+  isSending = true;
+  document.getElementById('send-btn').disabled = true;
+
+  try {
+    const r = await fetch(`${API}/api/query`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        query, doc_id:docId, conversation_id:activeConvId,
+        use_reasoning:reasoning, n_results:5,
+        use_multi_query:true, use_hyde:true, use_stepback:true, use_rerank:true,
+      }),
+    });
+    const data = await r.json();
+    document.getElementById(typingId)?.remove();
+    lastAnswer = data.answer;
+    if (data.new_conversation && data.conversation_id) activeConvId = data.conversation_id;
+
+    if (data.past_context_used) {
+      document.getElementById('hist-badge').style.display = 'inline';
+      setTimeout(() => document.getElementById('hist-badge').style.display = 'none', 4000);
+    }
+
+    appendBubble({
+      role:'assistant',
+      content: data.answer,
+      created_at: new Date().toISOString(),
+      id: 'live-' + Date.now(),
+      metadata: {
+        sources: data.sources || [],
+        analysis: data.analysis,
+        query_bundle: data.query_bundle,
+      },
+    });
+    if (data.analysis) appendAnalysis(data.analysis);
+    await loadConversations();
+    document.getElementById('toolbar-title').textContent =
+      conversations.find(c => c.id === activeConvId)?.title || 'Conversation';
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    appendBubble({role:'assistant', content:'❌ Error: ' + e.message, created_at:new Date().toISOString(), id:'err'});
+  }
+  isSending = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+
+function appendBubble(m) {
+  const el = document.getElementById('chat-messages');
+  const placeholder = el.querySelector('[style*="margin-top:40px"], [style*="margin-top:60px"]');
+  if (placeholder) placeholder.remove();
+  const div = document.createElement('div');
+  div.innerHTML = buildBubble(m);
+  el.appendChild(div.firstElementChild);
+  el.scrollTop = el.scrollHeight;
+}
+function appendTyping(id) {
+  const el = document.getElementById('chat-messages');
+  el.insertAdjacentHTML('beforeend', `
+    <div id="${id}" class="msg assistant">
+      <div class="bubble typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>`);
+  el.scrollTop = el.scrollHeight;
+}
+function appendAnalysis(text) {
+  const el = document.getElementById('chat-messages');
+  el.insertAdjacentHTML('beforeend', `
+    <div class="msg assistant">
+      <div class="reasoning-block"><strong style="font-size:.7rem;color:var(--accent2)">💭 REASONING</strong><br>${esc(text)}</div>
+    </div>`);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function speakLastAnswer() {
+  if (!lastAnswer) return toast('Send a message first');
+  const r = await fetch(`${API}/api/tts`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text:lastAnswer.slice(0,1000), voice:'autumn'}),
+  });
+  if (!r.ok) return toast('TTS error','error');
+  const blob = await r.blob();
+  const audio = document.getElementById('chat-audio');
+  audio.src = URL.createObjectURL(blob);
+  audio.style.display = 'block';
+  audio.play();
+}
+
+// ── Passage Viewer ────────────────────────────────────────────────────────────
+async function openPassage(docId, chunkIndex, citationNum) {
+  const overlay = document.getElementById('pv-overlay');
+  const bodyEl  = document.getElementById('pv-body');
+  const titleEl = document.getElementById('pv-title');
+  const metaEl  = document.getElementById('pv-meta');
+  const charsEl = document.getElementById('pv-chars');
+
+  // Show modal with loading state
+  titleEl.textContent = 'Loading passage…';
+  metaEl.innerHTML = '';
+  charsEl.textContent = '';
+  bodyEl.innerHTML = `<div style="color:var(--text2);text-align:center;padding:40px 0;">
+    <div class="spinner" style="margin:0 auto 10px;border-top-color:var(--accent);"></div>
+    Fetching passage…</div>`;
+  overlay.classList.add('open');
+
+  try {
+    const r = await fetch(`${API}/api/passage/${docId}/${chunkIndex}?window=1`);
+    if (!r.ok) throw new Error('Passage not found');
+    const data = await r.json();
+    const chunks = data.passage || [];
+    const target = chunks.find(c => c.is_target) || chunks[0];
+
+    // Header
+    const doc = documents.find(d => d.id === docId);
+    titleEl.textContent = doc ? `${fileIcon(doc.filename)} ${doc.filename}` : `Document chunk #${chunkIndex}`;
+
+    // Meta tags
+    const tags = [];
+    if (target?.page_estimate) tags.push(`<span class="sc-tag page">📄 Page ${target.page_estimate}</span>`);
+    if (target?.section) tags.push(`<span class="sc-tag section" title="${esc(target.section)}">§ ${esc(target.section)}</span>`);
+    if (citationNum) tags.push(`<span class="sc-tag" style="background:var(--cite-bg);color:var(--accent);">[${citationNum}] Citation</span>`);
+    metaEl.innerHTML = tags.join('');
+
+    // Char range
+    if (target?.start_char != null) {
+      charsEl.textContent = `Characters ${target.start_char.toLocaleString()} – ${target.end_char.toLocaleString()}`;
+    }
+
+    // Passage chunks
+    bodyEl.innerHTML = chunks.map(c => {
+      const label = c.is_target
+        ? `<div class="pv-chunk-label">🎯 Matched passage · chunk #${c.chunk_index}</div>`
+        : `<div class="pv-chunk-label">${c.chunk_index < chunkIndex ? '⬆ Before' : '⬇ After'} · chunk #${c.chunk_index}</div>`;
+      return `<div class="pv-chunk ${c.is_target ? 'target' : ''}">
+        ${label}
+        <div>${esc(c.text)}</div>
+      </div>`;
+    }).join('') || '<div style="color:var(--text2)">No passage content found.</div>';
+
+  } catch(e) {
+    bodyEl.innerHTML = `<div style="color:var(--danger);padding:20px;">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+function closePV(e) {
+  // Close only when clicking overlay bg or close button (not modal content)
+  if (e && e.target !== document.getElementById('pv-overlay')) return;
+  document.getElementById('pv-overlay').classList.remove('open');
+}
+
+// Keyboard: Escape closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('pv-overlay').classList.remove('open');
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('msg-input');
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  loadAll();
+  fetch(`${API}/api/health`).then(r=>r.json()).then(d => {
+    if (!d.groq_configured) toast('⚠️ GROQ_API_KEY not set!','error');
+  }).catch(()=>{});
+});
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+function handleDrag(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag'); }
+function removeDrag() { document.getElementById('upload-zone').classList.remove('drag'); }
+function handleDrop(e) { e.preventDefault(); removeDrag(); uploadFile(e.dataTransfer.files[0]); }
+async function uploadFile(file) {
+  if (!file) return;
+  const prog  = document.getElementById('upload-progress');
+  const bar   = document.getElementById('progress-bar');
+  const steps = document.getElementById('upload-steps');
+  prog.style.display = 'block';
+  document.getElementById('upload-result').style.display = 'none';
+  const msgs = [[15,'📤 Storing in MinIO...'],[35,'📄 Extracting text (Kreuzberg)...'],[60,'🧮 Building embeddings...'],[80,'🕸️ Extracting knowledge graph...'],[95,'✅ Finalizing...']];
+  let mi = 0;
+  const iv = setInterval(() => { if (mi<msgs.length){bar.style.width=msgs[mi][0]+'%';steps.textContent=msgs[mi][1];mi++;}},700);
+  try {
+    const fd = new FormData(); fd.append('file',file);
+    const data = await (await fetch(`${API}/api/upload`,{method:'POST',body:fd})).json();
+    clearInterval(iv); bar.style.width='100%'; steps.textContent='✅ Done!';
+    document.getElementById('upload-json').textContent = JSON.stringify(data,null,2);
+    document.getElementById('upload-result').style.display = 'block';
+    toast(`✅ ${file.name} processed!`,'success');
+    loadAll();
+    setTimeout(() => prog.style.display='none', 2500);
+  } catch(e) {
+    clearInterval(iv); steps.textContent = '❌ ' + e.message;
+    toast('Upload failed','error');
+  }
+}
+
+// ── Structured ────────────────────────────────────────────────────────────────
+function addField() {
+  document.getElementById('schema-fields').insertAdjacentHTML('beforeend',
+    `<div class="schema-field"><input class="tool-in" placeholder="Field name"><select class="tool-sel" style="width:90px"><option>string</option><option>array</option><option>number</option><option>boolean</option></select><button class="btn btn-s" onclick="removeField(this)" style="padding:7px 9px;">✕</button></div>`);
+}
+function removeField(btn) {
+  if (document.querySelectorAll('.schema-field').length>1) btn.closest('.schema-field').remove();
+}
+function buildSchema() {
+  const s={};
+  document.querySelectorAll('.schema-field').forEach(row=>{
+    const name=row.querySelector('input').value.trim(), type=row.querySelector('select').value;
+    if(!name)return;
+    s[name]=type==='array'?['string']:type==='number'?0:type==='boolean'?false:'string';
+  });
+  return s;
+}
+async function runStructured() {
+  const docId=document.getElementById('struct-doc').value;
+  const prompt=document.getElementById('struct-prompt').value.trim();
+  if(!docId)return toast('Select a document');
+  if(!prompt)return toast('Enter extraction prompt');
+  const r=await fetch(`${API}/api/extract-structured`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_id:docId,prompt,schema:buildSchema()})});
+  currentStructData=await r.json();
+  document.getElementById('struct-json').textContent=JSON.stringify(currentStructData,null,2);
+  document.getElementById('struct-result').style.display='block';
+}
+function downloadJSON() {
+  if(!currentStructData)return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(currentStructData,null,2)],{type:'application/json'}));
+  a.download='extracted.json';a.click();
+}
+
+// ── Graph ─────────────────────────────────────────────────────────────────────
+async function loadGraph() {
+  const docId=document.getElementById('graph-doc').value;
+  if(!docId)return toast('Select a document');
+  const data=await(await fetch(`${API}/api/graph/${docId}`)).json();
+  const entities=data.entities||[], relations=data.relations||[];
+  document.getElementById('g-ents').textContent=entities.length;
+  document.getElementById('g-rels').textContent=relations.length;
+  document.getElementById('g-types').textContent=new Set(entities.map(e=>e.type)).size;
+  document.getElementById('entity-tags').innerHTML=entities.map(e=>`<span class="entity-tag type-${e.type}">${esc(e.name)}</span>`).join('');
+  document.getElementById('rel-list').innerHTML=relations.length
+    ?relations.map(r=>`<div style="padding:4px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--accent)">${esc(r.source)}</span>
+        <span style="color:var(--text2);margin:0 6px;">→ ${esc(r.relation)} →</span>
+        <span style="color:var(--accent2)">${esc(r.target)}</span></div>`).join('')
+    :'<div style="color:var(--text2)">No relationships found</div>';
+  document.getElementById('graph-result').style.display='block';
+}
+
+// ── TTS ───────────────────────────────────────────────────────────────────────
+async function generateTTS() {
+  const text=document.getElementById('tts-text').value.trim();
+  const voice=document.getElementById('tts-voice').value;
+  if(!text)return toast('Enter some text');
+  document.getElementById('tts-spinner').style.display='inline-block';
+  try {
+    const r=await fetch(`${API}/api/tts`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice})});
+    if(!r.ok){const e=await r.json();throw new Error(e.detail||'TTS failed');}
+    lastAudioBlob=await r.blob();
+    const audio=document.getElementById('tts-audio');
+    audio.src=URL.createObjectURL(lastAudioBlob);
+    audio.style.display='block';
+    document.getElementById('tts-dl').style.display='inline-flex';
+    audio.play();
+    toast('Audio ready!','success');
+  } catch(e){toast('TTS error: '+e.message,'error');}
+  document.getElementById('tts-spinner').style.display='none';
+}
+function downloadAudio() {
+  if(!lastAudioBlob)return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(lastAudioBlob);
+  a.download='speech.wav';a.click();
+}
+</script>
+</body>
+</html>
