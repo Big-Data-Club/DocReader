@@ -25,7 +25,6 @@ from functools import lru_cache
 
 # ── Language detection ────────────────────────────────────────────────────────
 
-# Vietnamese-specific Unicode characters (combining diacritics unique to Vietnamese)
 _VI_CHARS = re.compile(
     r"[àáâãèéêìíòóôõùúýăđơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỷỹỵ"
     r"ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝĂĐƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỶỸỴ]",

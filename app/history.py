@@ -1,7 +1,7 @@
 """
 Conversation history — GraphRAG-aware, multilingual, personalization engine.
 
-Architecture v2:
+Architecture:
 ─────────────────────────────────────────────────────────────────────────
 SQLite (persistent structured store)
   • conversations     — conversation metadata + language preference
@@ -588,7 +588,7 @@ def _entity_history_search(entity_ids: list[str], limit: int = 5) -> list[dict]:
                 "text":            r["content"][:600],
                 "message_id":      r["message_id"],
                 "conversation_id": r["conversation_id"],
-                "score":           0.7,  # entity-match is high-confidence
+                "score":           0.7,
             }
             for r in rows
         ]
@@ -728,7 +728,7 @@ def _infer_lang_preference() -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# User profile vector index  (topic embeddings for personalized re-ranking)
+# User profile vector index
 # ══════════════════════════════════════════════════════════════════════════════
 
 def index_user_interests_into_vector():

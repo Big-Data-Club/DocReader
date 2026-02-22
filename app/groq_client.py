@@ -1,12 +1,5 @@
 """
-Groq API client — multilingual + personalization edition.
-
-Changes vs. v0.5:
-• KG extraction now requests cross-lingual aliases for each entity
-  (e.g., "machine learning" → alias "học máy") — fed into graph.add_entity_alias()
-• rag_answer() accepts personalization_context and weaves it into the system prompt
-• rerank_chunks() adds a small user-profile affinity boost
-• build_community_summary() — LLM summarizes a community of entities for global search
+Groq API client
 """
 import json
 from groq import Groq

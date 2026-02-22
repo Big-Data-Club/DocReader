@@ -120,17 +120,91 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;hei
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .sc-open-btn{margin-top:7px;font-size:.68rem;color:var(--accent);display:flex;align-items:center;gap:3px;}
 
-/* ── Query bundle strip ── */
-.query-bundle{margin-top:8px;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
-.qb-header{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;
-  background:var(--surface2);font-size:.7rem;color:var(--text2);}
-.qb-header:hover{color:var(--text);}
-.qb-body{padding:10px;display:none;background:var(--surface);border-top:1px solid var(--border);}
-.qb-body.open{display:block;}
-.qb-row{margin-bottom:7px;}
-.qb-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);margin-bottom:3px;}
-.qb-val{font-size:.74rem;color:var(--text);background:var(--surface2);border-radius:4px;padding:4px 8px;
-  border-left:2px solid var(--accent);}
+/* ── Agent Pipeline ── */
+.agent-pipeline{margin-top:10px;border:1px solid rgba(124,111,247,.3);border-radius:10px;overflow:hidden;background:rgba(15,15,20,.6);}
+.ap-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;
+  background:linear-gradient(135deg,rgba(124,111,247,.12),rgba(78,205,196,.06));
+  border-bottom:1px solid transparent;transition:.2s;}
+.ap-header:hover{background:linear-gradient(135deg,rgba(124,111,247,.2),rgba(78,205,196,.1));}
+.ap-header-left{display:flex;align-items:center;gap:8px;}
+.ap-title{font-size:.75rem;font-weight:700;color:var(--accent);letter-spacing:.3px;}
+.ap-summary{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.ap-chip{font-size:.62rem;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;}
+.ap-chip.lang-vi{background:rgba(255,200,50,.15);color:#ffc832;border:1px solid rgba(255,200,50,.3);}
+.ap-chip.lang-en{background:rgba(78,205,196,.15);color:var(--accent2);border:1px solid rgba(78,205,196,.3);}
+.ap-chip.lang-mixed{background:rgba(124,111,247,.15);color:var(--accent);border:1px solid rgba(124,111,247,.3);}
+.ap-chip.stat{background:rgba(180,180,200,.1);color:var(--text2);border:1px solid rgba(180,180,200,.15);}
+.ap-chevron{font-size:.65rem;color:var(--text2);transition:transform .25s;}
+.ap-chevron.open{transform:rotate(180deg);}
+.ap-body{display:none;padding:0;}
+.ap-body.open{display:block;}
+
+/* Pipeline timeline */
+.pipeline-steps{padding:12px 14px;display:flex;flex-direction:column;gap:0;}
+.p-step{display:flex;gap:10px;position:relative;}
+.p-step:not(:last-child)::before{content:'';position:absolute;left:14px;top:28px;bottom:-4px;
+  width:1px;background:linear-gradient(var(--border),transparent);z-index:0;}
+.p-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;flex-shrink:0;z-index:1;border:1px solid var(--border);}
+.p-icon.detect{background:rgba(255,200,50,.12);border-color:rgba(255,200,50,.3);}
+.p-icon.translate{background:rgba(78,205,196,.12);border-color:rgba(78,205,196,.3);}
+.p-icon.expand{background:rgba(124,111,247,.12);border-color:rgba(124,111,247,.3);}
+.p-icon.hyde{background:rgba(80,200,120,.12);border-color:rgba(80,200,120,.3);}
+.p-icon.stepback{background:rgba(240,180,80,.12);border-color:rgba(240,180,80,.3);}
+.p-icon.retrieve{background:rgba(240,96,96,.12);border-color:rgba(240,96,96,.3);}
+.p-icon.graph{background:rgba(178,100,240,.12);border-color:rgba(178,100,240,.3);}
+.p-icon.answer{background:rgba(124,111,247,.2);border-color:rgba(124,111,247,.5);}
+.p-content{flex:1;padding:4px 0 14px;}
+.p-step-title{font-size:.7rem;font-weight:700;color:var(--text);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+.p-step-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);
+  background:var(--surface2);border-radius:3px;padding:1px 5px;}
+
+/* Language columns */
+.lang-cols{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+.lang-col{background:var(--surface2);border-radius:6px;padding:8px 10px;border:1px solid var(--border);}
+.lang-col-hdr{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;
+  display:flex;align-items:center;gap:4px;}
+.lang-col-hdr.vi{color:#ffc832;}.lang-col-hdr.en{color:var(--accent2);}
+.lang-col-val{font-size:.72rem;color:var(--text);line-height:1.55;}
+.lang-col-val.original{color:var(--accent);font-style:italic;}
+
+/* Query pills */
+.q-pill-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
+.q-pill{font-size:.67rem;padding:3px 8px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text2);line-height:1.4;}
+.q-pill.original-q{background:rgba(124,111,247,.12);border-color:rgba(124,111,247,.3);color:var(--accent);}
+.q-pill.vi-q{background:rgba(255,200,50,.08);border-color:rgba(255,200,50,.25);color:#e0b020;}
+.q-pill.en-q{background:rgba(78,205,196,.08);border-color:rgba(78,205,196,.25);color:var(--accent2);}
+
+/* Retrieval stats bar */
+.ret-stats{margin-top:5px;display:flex;flex-direction:column;gap:5px;}
+.ret-row{display:flex;align-items:center;gap:8px;}
+.ret-label{font-size:.65rem;color:var(--text2);width:110px;flex-shrink:0;display:flex;align-items:center;gap:4px;}
+.ret-bar-wrap{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.ret-bar{height:100%;border-radius:3px;transition:width .4s ease;}
+.ret-bar.vector{background:linear-gradient(90deg,var(--accent2),var(--accent));}
+.ret-bar.question{background:linear-gradient(90deg,#50c878,#7c6ff7);}
+.ret-bar.graph{background:linear-gradient(90deg,#b264f0,#7c6ff7);}
+.ret-bar.global{background:linear-gradient(90deg,#f06060,#f7c847);}
+.ret-num{font-size:.65rem;color:var(--text2);width:30px;text-align:right;flex-shrink:0;}
+.ret-total{display:flex;justify-content:space-between;font-size:.68rem;color:var(--text2);
+  border-top:1px solid var(--border);padding-top:5px;margin-top:2px;}
+.ret-total strong{color:var(--accent);}
+
+/* Graph entities inline */
+.entity-inline{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.ei-tag{font-size:.65rem;padding:2px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;
+  background:rgba(124,111,247,.12);border:1px solid rgba(124,111,247,.25);color:var(--accent);}
+
+/* HyDE collapsible */
+.hyde-toggle{font-size:.65rem;color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:3px;
+  margin-top:4px;background:rgba(124,111,247,.1);border:1px solid rgba(124,111,247,.2);
+  border-radius:4px;padding:2px 7px;transition:.15s;}
+.hyde-toggle:hover{background:rgba(124,111,247,.2);}
+.hyde-content{display:none;margin-top:6px;}
+.hyde-content.open{display:block;}
+
+/* Query bundle legacy (keep for history messages) */
 .qb-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);
   border-radius:10px;padding:2px 7px;font-size:.68rem;color:var(--text2);margin:2px;}
 
@@ -227,6 +301,7 @@ pre.json-out{background:var(--surface2);border:1px solid var(--border);border-ra
 .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;
   border-radius:50%;animation:spin .6s linear infinite;display:inline-block;}
 @keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 </style>
@@ -581,24 +656,252 @@ function renderAnswerWithCitations(text, sources) {
   });
 }
 
+// ── Agent pipeline builder ────────────────────────────────────────────────────
+function buildAgentPipeline(meta, uid) {
+  const qb = meta.query_bundle || {};
+  const rs = meta.retrieval_stats || {};
+  const gc = meta.graph_context || {};
+  const pe = meta.personalization || {};
+
+  // Nothing useful to show
+  if (!qb.original && !rs.final_chunks) return '';
+
+  const lang = qb.detected_lang || rs.detected_lang || 'en';
+  const langLabel = {vi:'🇻🇳 Vietnamese', en:'🇺🇸 English', mixed:'🌐 Mixed'}[lang] || lang;
+  const langChipClass = {vi:'lang-vi', en:'lang-en', mixed:'lang-mixed'}[lang] || 'lang-en';
+
+  const totalVariants = (qb.multi_vi||[]).length + (qb.multi_en||[]).length;
+  const pid = `ap-${uid}`;
+
+  // ── Summary chips in header ──
+  const chips = [
+    `<span class="ap-chip ${langChipClass}">${langLabel}</span>`,
+    totalVariants > 0 ? `<span class="ap-chip stat">🔀 ${totalVariants} queries</span>` : '',
+    rs.final_chunks ? `<span class="ap-chip stat">📄 ${rs.final_chunks} chunks used</span>` : '',
+    gc.entities?.length ? `<span class="ap-chip stat">🕸️ ${gc.entities.length} entities</span>` : '',
+  ].filter(Boolean).join('');
+
+  // ── Step 1: Language Detection ──
+  const step1 = `
+    <div class="p-step">
+      <div class="p-icon detect">🌐</div>
+      <div class="p-content">
+        <div class="p-step-title">Language Detection <span class="p-step-label">Step 1</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <span class="ap-chip ${langChipClass}" style="font-size:.7rem;">${langLabel}</span>
+          ${qb.original ? `<span style="font-size:.72rem;color:var(--text2);">"${esc(qb.original.slice(0,60))}${qb.original.length>60?'…':''}"</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // ── Step 2: Translation ──
+  let step2 = '';
+  const showTranslation = qb.query_vi && qb.query_en && qb.query_vi !== qb.query_en && qb.query_vi !== qb.original && qb.query_en !== qb.original;
+  if (showTranslation) {
+    step2 = `
+    <div class="p-step">
+      <div class="p-icon translate">🔄</div>
+      <div class="p-content">
+        <div class="p-step-title">Query Translation <span class="p-step-label">Step 2</span></div>
+        <div class="lang-cols">
+          <div class="lang-col">
+            <div class="lang-col-hdr vi">🇻🇳 Vietnamese</div>
+            <div class="lang-col-val ${lang==='vi'?'original':''}">${esc(qb.query_vi||'—')}</div>
+          </div>
+          <div class="lang-col">
+            <div class="lang-col-hdr en">🇺🇸 English</div>
+            <div class="lang-col-val ${lang==='en'?'original':''}">${esc(qb.query_en||'—')}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Step 3: Multi-Query Expansion ──
+  let step3 = '';
+  const multiVi = (qb.multi_vi||[]).filter(q => q !== qb.query_vi);
+  const multiEn = (qb.multi_en||[]).filter(q => q !== qb.query_en);
+  if (multiVi.length || multiEn.length) {
+    const viPills = multiVi.map(q => `<span class="q-pill vi-q">🇻🇳 ${esc(q)}</span>`).join('');
+    const enPills = multiEn.map(q => `<span class="q-pill en-q">🇺🇸 ${esc(q)}</span>`).join('');
+    const origVi = qb.query_vi ? `<span class="q-pill original-q">🇻🇳 ${esc(qb.query_vi)}</span>` : '';
+    const origEn = qb.query_en ? `<span class="q-pill original-q">🇺🇸 ${esc(qb.query_en)}</span>` : '';
+    step3 = `
+    <div class="p-step">
+      <div class="p-icon expand">🔀</div>
+      <div class="p-content">
+        <div class="p-step-title">Multi-Query Expansion <span class="p-step-label">Step ${showTranslation?3:2}</span></div>
+        <div style="font-size:.65rem;color:var(--text2);margin-bottom:5px;">Generates multiple query variants per language → broader recall</div>
+        <div class="q-pill-list">${origVi}${viPills}${origEn}${enPills}</div>
+      </div>
+    </div>`;
+  }
+
+  // ── Step 4: HyDE ──
+  let step4 = '';
+  if (qb.hyde_vi || qb.hyde_en) {
+    const hid = `hyde-${uid}`;
+    step4 = `
+    <div class="p-step">
+      <div class="p-icon hyde">🔬</div>
+      <div class="p-content">
+        <div class="p-step-title">HyDE — Hypothetical Document <span class="p-step-label">Step ${showTranslation?4:3}</span></div>
+        <div style="font-size:.65rem;color:var(--text2);margin-bottom:5px;">Generates a fake "ideal answer" passage to improve semantic matching</div>
+        <span class="hyde-toggle" onclick="toggleHyde('${hid}')">👁 Show hypothetical passages ▾</span>
+        <div class="hyde-content" id="${hid}">
+          <div class="lang-cols" style="margin-top:6px;">
+            ${qb.hyde_vi ? `<div class="lang-col"><div class="lang-col-hdr vi">🇻🇳 Vietnamese</div><div class="lang-col-val" style="font-style:italic;">${esc(qb.hyde_vi)}</div></div>` : ''}
+            ${qb.hyde_en ? `<div class="lang-col"><div class="lang-col-hdr en">🇺🇸 English</div><div class="lang-col-val" style="font-style:italic;">${esc(qb.hyde_en)}</div></div>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Step 5: Step-back ──
+  let step5 = '';
+  if (qb.stepback_vi || qb.stepback_en) {
+    step5 = `
+    <div class="p-step">
+      <div class="p-icon stepback">⬆️</div>
+      <div class="p-content">
+        <div class="p-step-title">Step-back Query <span class="p-step-label">Step ${showTranslation?5:4}</span></div>
+        <div style="font-size:.65rem;color:var(--text2);margin-bottom:5px;">Broadens the query to retrieve background context</div>
+        <div class="lang-cols">
+          ${qb.stepback_vi ? `<div class="lang-col"><div class="lang-col-hdr vi">🇻🇳 Vietnamese</div><div class="lang-col-val">${esc(qb.stepback_vi)}</div></div>` : ''}
+          ${qb.stepback_en ? `<div class="lang-col"><div class="lang-col-hdr en">🇺🇸 English</div><div class="lang-col-val">${esc(qb.stepback_en)}</div></div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Step 6: Retrieval Stats ──
+  let step6 = '';
+  if (rs.vector_chunks != null || rs.final_chunks != null) {
+    const maxV = Math.max(rs.vector_chunks||0, rs.question_chunks||0, rs.graph_chunks||0, rs.global_chunks||0, 1);
+    const barPct = (n) => Math.round((n||0)/maxV*100);
+    const total = rs.total_before_rerank || ((rs.vector_chunks||0)+(rs.question_chunks||0)+(rs.graph_chunks||0)+(rs.global_chunks||0));
+    step6 = `
+    <div class="p-step">
+      <div class="p-icon retrieve">📊</div>
+      <div class="p-content">
+        <div class="p-step-title">Retrieval & Fusion (RRF) <span class="p-step-label">Step ${showTranslation?6:5}</span></div>
+        <div style="font-size:.65rem;color:var(--text2);margin-bottom:6px;">
+          Searched ${rs.queries_vi||0} VI + ${rs.queries_en||0} EN queries → merged with Reciprocal Rank Fusion
+        </div>
+        <div class="ret-stats">
+          <div class="ret-row">
+            <div class="ret-label">🔍 Vector search</div>
+            <div class="ret-bar-wrap"><div class="ret-bar vector" style="width:${barPct(rs.vector_chunks)}%"></div></div>
+            <div class="ret-num">${rs.vector_chunks||0}</div>
+          </div>
+          <div class="ret-row">
+            <div class="ret-label">❓ Question index</div>
+            <div class="ret-bar-wrap"><div class="ret-bar question" style="width:${barPct(rs.question_chunks)}%"></div></div>
+            <div class="ret-num">${rs.question_chunks||0}</div>
+          </div>
+          <div class="ret-row">
+            <div class="ret-label">🕸️ Knowledge graph</div>
+            <div class="ret-bar-wrap"><div class="ret-bar graph" style="width:${barPct(rs.graph_chunks)}%"></div></div>
+            <div class="ret-num">${rs.graph_chunks||0}</div>
+          </div>
+          ${rs.global_chunks ? `<div class="ret-row">
+            <div class="ret-label">🌍 Global search</div>
+            <div class="ret-bar-wrap"><div class="ret-bar global" style="width:${barPct(rs.global_chunks)}%"></div></div>
+            <div class="ret-num">${rs.global_chunks}</div>
+          </div>` : ''}
+          <div class="ret-total">
+            <span>${total} chunks merged → reranked → <strong>${rs.final_chunks||'?'} used</strong></span>
+            ${rs.total_before_rerank ? `<span style="font-size:.62rem;">💡 ${rs.total_before_rerank - (rs.final_chunks||0)} filtered out</span>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Step 7: Graph Entities ──
+  let step7 = '';
+  const ents = gc.entities||[];
+  const coms = gc.communities||[];
+  if (ents.length || coms.length) {
+    const entTags = ents.slice(0,8).map(e =>
+      `<span class="ei-tag">🔵 ${esc(e.name||e)}</span>`).join('');
+    const comTags = coms.slice(0,3).map(c =>
+      `<span class="ei-tag" style="background:rgba(178,100,240,.1);border-color:rgba(178,100,240,.3);color:#c080f0;">🟣 ${esc(c.label||c.id||'Community')}</span>`).join('');
+    step7 = `
+    <div class="p-step">
+      <div class="p-icon graph">🕸️</div>
+      <div class="p-content">
+        <div class="p-step-title">Knowledge Graph Context <span class="p-step-label">Step ${showTranslation?7:6}</span></div>
+        <div style="font-size:.65rem;color:var(--text2);margin-bottom:5px;">
+          Entities and communities found in the graph — added as context
+        </div>
+        <div class="entity-inline">${entTags}${comTags}</div>
+        ${gc.chunks_from_graph ? `<div style="font-size:.62rem;color:var(--text2);margin-top:4px;">+${gc.chunks_from_graph} chunks linked from graph traversal</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // ── Final step: Answer generation ──
+  const stepFinal = `
+    <div class="p-step">
+      <div class="p-icon answer">🤖</div>
+      <div class="p-content" style="padding-bottom:4px;">
+        <div class="p-step-title" style="color:var(--accent);">Answer Generated</div>
+        ${pe.past_context_used ? `<span style="font-size:.65rem;color:var(--text2);">📝 Used conversation history as context</span>` : ''}
+        ${pe.interests?.length ? `<div style="font-size:.65rem;color:var(--text2);margin-top:2px;">👤 Personalization: ${pe.interests.slice(0,3).join(', ')}</div>` : ''}
+      </div>
+    </div>`;
+
+  return `
+  <div class="agent-pipeline" id="${pid}">
+    <div class="ap-header" onclick="togglePipeline('${pid}')">
+      <div class="ap-header-left">
+        <span style="font-size:.9rem;">⚙️</span>
+        <span class="ap-title">How I answered</span>
+        <div class="ap-summary">${chips}</div>
+      </div>
+      <span class="ap-chevron" id="apchev-${pid}">▼</span>
+    </div>
+    <div class="ap-body" id="apbody-${pid}">
+      <div class="pipeline-steps">
+        ${step1}${step2}${step3}${step4}${step5}${step6}${step7}${stepFinal}
+      </div>
+    </div>
+  </div>`;
+}
+
+function togglePipeline(pid) {
+  const body = document.getElementById('apbody-' + pid);
+  const chev = document.getElementById('apchev-' + pid);
+  const open = body.classList.toggle('open');
+  if (chev) chev.classList.toggle('open', open);
+}
+
+function toggleHyde(hid) {
+  const el = document.getElementById(hid);
+  el.classList.toggle('open');
+  const btn = el.previousElementSibling;
+  if (btn) btn.textContent = el.classList.contains('open')
+    ? '👁 Hide hypothetical passages ▴'
+    : '👁 Show hypothetical passages ▾';
+}
+
 // ── Build a chat bubble with rich source citations ─────────────────────────────
 function buildBubble(m) {
   const isUser = m.role === 'user';
   const meta = m.metadata || {};
-  // sources may be full objects (live) or simplified (from history)
   const sources = (meta.sources || []);
-  const queryBundle = meta.query_bundle || null;
   const uid = m.id || ('m-' + Date.now() + Math.random());
 
   let contentHtml;
   if (isUser) {
     contentHtml = `<span>${esc(m.content)}</span>`;
   } else {
-    // Render answer with inline citation refs
     contentHtml = renderAnswerWithCitations(m.content, sources);
   }
 
-  // Source cards (only if sources have full metadata)
+  // Source cards
   let sourcesHtml = '';
   if (!isUser && sources.length) {
     const sid = `src-${uid}`;
@@ -612,15 +915,17 @@ function buildBubble(m) {
       const page = s.page_estimate ? `<span class="sc-tag page">p.${s.page_estimate}</span>` : '';
       const chars = (s.start_char != null)
         ? `<span class="sc-tag chars">${s.start_char}–${s.end_char}</span>` : '';
+      const fromGraph = s.from_graph ? `<span class="sc-tag" style="background:rgba(178,100,240,.12);color:#b264f0;border:1px solid rgba(178,100,240,.25);">🕸️ graph</span>` : '';
+      const viaQ = s.via_question ? `<span class="sc-tag" style="background:rgba(80,200,120,.1);color:#50c878;">❓ via question</span>` : '';
+      const langBadge = s.search_lang ? `<span class="sc-tag" style="background:rgba(180,180,200,.08);color:var(--text2);">${s.search_lang==='vi'?'🇻🇳':'🇺🇸'}</span>` : '';
       const excerpt = s.text ? `<div class="sc-excerpt">${esc(s.text)}</div>` : '';
-      const openBtn = hasFullMeta && s.doc_id
-        ? `<div class="sc-open-btn">📖 View passage</div>` : '';
+      const openBtn = hasFullMeta && s.doc_id ? `<div class="sc-open-btn">📖 View passage</div>` : '';
       const onclick = hasFullMeta && s.doc_id
         ? `onclick="openPassage('${s.doc_id}',${s.chunk_index},${s.citation_number})"` : '';
 
       return `<div class="source-card" data-num="[${s.citation_number ?? '?'}]" ${onclick}>
         <div class="sc-file">${fileIcon(s.filename||'')} ${esc(s.filename||'Unknown')}</div>
-        <div class="sc-loc">${page}${section}${chars}</div>
+        <div class="sc-loc">${page}${section}${chars}${fromGraph}${viaQ}${langBadge}</div>
         <div class="sc-score">
           <div class="sc-bar-wrap"><div class="sc-bar" style="width:${barW}%"></div></div>
           <span class="sc-score-num">${barW}% match</span>
@@ -636,39 +941,18 @@ function buildBubble(m) {
             📎 Sources <span class="cnt">${sources.length}</span>
           </div>${chev}
         </div>
-        <div id="${sid}" class="sources-grid" style="display:none;">
-          ${cards}
-        </div>
+        <div id="${sid}" class="sources-grid" style="display:none;">${cards}</div>
       </div>`;
   }
 
-  // Query bundle (only present on live responses with full data)
-  let bundleHtml = '';
-  if (!isUser && queryBundle && (queryBundle.multi?.length > 1 || queryBundle.hyde || queryBundle.stepback)) {
-    const bid = `qb-${uid}`;
-    const multiPills = (queryBundle.multi||[]).slice(1).map(q =>
-      `<span class="qb-pill">${esc(q)}</span>`).join('');
-    const hydeRow = queryBundle.hyde
-      ? `<div class="qb-row"><div class="qb-label">🔬 HyDE passage</div><div class="qb-val">${esc(queryBundle.hyde)}</div></div>` : '';
-    const stepRow = queryBundle.stepback
-      ? `<div class="qb-row"><div class="qb-label">⬆️ Step-back query</div><div class="qb-val">${esc(queryBundle.stepback)}</div></div>` : '';
-    const multiRow = multiPills
-      ? `<div class="qb-row"><div class="qb-label">🔀 Query variants</div><div>${multiPills}</div></div>` : '';
-    bundleHtml = `
-      <div class="query-bundle">
-        <div class="qb-header" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.sources-chevron').classList.toggle('open')">
-          🔍 Query rewriting used &nbsp;<span class="sources-chevron">▼</span>
-        </div>
-        <div class="qb-body" id="${bid}">
-          ${multiRow}${hydeRow}${stepRow}
-        </div>
-      </div>`;
-  }
+  // Agent pipeline (only for assistant messages with data)
+  const pipelineHtml = (!isUser && (meta.query_bundle || meta.retrieval_stats))
+    ? buildAgentPipeline(meta, uid) : '';
 
   return `<div class="msg ${m.role}">
     <div class="bubble" style="line-height:1.7;">${contentHtml}</div>
+    ${pipelineHtml}
     ${sourcesHtml}
-    ${bundleHtml}
     <div class="msg-meta">
       <span>${isUser ? '🧑' : '🤖'} ${fmtTime(m.created_at)}</span>
     </div>
@@ -721,6 +1005,8 @@ async function sendMessage() {
       }),
     });
     const data = await r.json();
+    // Clean up typing animation interval
+    if (window[`_typing_iv_${typingId}`]) { clearInterval(window[`_typing_iv_${typingId}`]); }
     document.getElementById(typingId)?.remove();
     lastAnswer = data.answer;
     if (data.new_conversation && data.conversation_id) activeConvId = data.conversation_id;
@@ -739,6 +1025,9 @@ async function sendMessage() {
         sources: data.sources || [],
         analysis: data.analysis,
         query_bundle: data.query_bundle,
+        retrieval_stats: data.retrieval_stats,
+        graph_context: data.graph_context,
+        personalization: data.personalization,
       },
     });
     if (data.analysis) appendAnalysis(data.analysis);
@@ -746,6 +1035,7 @@ async function sendMessage() {
     document.getElementById('toolbar-title').textContent =
       conversations.find(c => c.id === activeConvId)?.title || 'Conversation';
   } catch(e) {
+    if (window[`_typing_iv_${typingId}`]) { clearInterval(window[`_typing_iv_${typingId}`]); }
     document.getElementById(typingId)?.remove();
     appendBubble({role:'assistant', content:'❌ Error: ' + e.message, created_at:new Date().toISOString(), id:'err'});
   }
@@ -767,9 +1057,47 @@ function appendTyping(id) {
   const el = document.getElementById('chat-messages');
   el.insertAdjacentHTML('beforeend', `
     <div id="${id}" class="msg assistant">
-      <div class="bubble typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="bubble" style="padding:10px 14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          <span id="${id}-status" style="font-size:.72rem;color:var(--text2);">Detecting language…</span>
+        </div>
+        <div id="${id}-steps" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
     </div>`);
   el.scrollTop = el.scrollHeight;
+
+  // Animate through pipeline steps
+  const steps = [
+    ['🌐','Detecting language…','lang-vi'],
+    ['🔄','Translating query…','lang-en'],
+    ['🔀','Expanding queries (VI + EN)…','stat'],
+    ['🔬','Generating HyDE passage…','stat'],
+    ['⬆️','Step-back query…','stat'],
+    ['📊','Searching vector store…','stat'],
+    ['🕸️','Traversing knowledge graph…','stat'],
+    ['⚡','Reranking results…','stat'],
+    ['🤖','Generating answer…','stat'],
+  ];
+  let si = 0;
+  const stepsEl = document.getElementById(`${id}-steps`);
+  const statusEl = document.getElementById(`${id}-status`);
+  const iv = setInterval(() => {
+    if (!document.getElementById(id)) { clearInterval(iv); return; }
+    if (si < steps.length) {
+      const [icon, label] = steps[si];
+      if (statusEl) statusEl.textContent = label;
+      if (stepsEl) {
+        stepsEl.insertAdjacentHTML('beforeend',
+          `<span class="ap-chip stat" style="animation:fadeIn .3s ease;">${icon} ${label.replace('…','')}</span>`);
+      }
+      si++;
+    } else {
+      clearInterval(iv);
+    }
+  }, 700);
+  // Store interval for cleanup
+  window[`_typing_iv_${id}`] = iv;
 }
 function appendAnalysis(text) {
   const el = document.getElementById('chat-messages');

@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # MinIO
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin123"
     minio_bucket: str = "documents"
     minio_secure: bool = False
 
@@ -22,14 +22,7 @@ class Settings(BaseSettings):
     chroma_dir: str = "/app/data/chroma"
     kuzu_dir: str = "/app/data/kuzu"
 
-    # Embedding — multilingual model supporting Vietnamese + English in one space.
-    # IMPORTANT: changing this model requires re-indexing all documents because
-    # the embedding space changes (delete data/chroma/* then re-upload documents).
-    #
-    # Options ranked by quality vs. size:
-    #   paraphrase-multilingual-MiniLM-L12-v2  ~420 MB — 384 dim — fast, good VI/EN
-    #   paraphrase-multilingual-mpnet-base-v2  ~970 MB — 768 dim — better quality
-    #   BAAI/bge-m3                           ~570 MB — 1024 dim — best multilingual
+    # Embedding
     embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
 
     class Config:

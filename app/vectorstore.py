@@ -1,13 +1,10 @@
 """
 ChromaDB vector store — multilingual edition.
 
-Key changes vs. v0.4:
 1. Embedding model changed to `paraphrase-multilingual-MiniLM-L12-v2`
    • Supports 50+ languages including Vietnamese + English in ONE shared space
    • Same 384-dim output as the old all-MiniLM-L6-v2 → no schema change in Chroma
    • Vietnamese and English texts now map to compatible vector positions
-   NOTE: If you have an existing ChromaDB index built with all-MiniLM-L6-v2 you
-         MUST re-index all documents (delete data/chroma/* and re-upload).
 
 2. `multilingual_search()` — searches with separate VI and EN query lists then
    merges with Reciprocal Rank Fusion via multilingual.rrf_merge().

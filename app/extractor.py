@@ -1,4 +1,4 @@
-"""Document text extraction using Kreuzberg — with rich chunk metadata."""
+"""Document text extraction"""
 import re
 from kreuzberg import ExtractionConfig, OcrConfig, extract_bytes_sync
 
@@ -139,7 +139,7 @@ def chunk_text(
 
         next_start = end - overlap
         if next_start <= start:
-            next_start = start + 1          # guard against infinite loop
+            next_start = start + 1
         start = next_start
 
         if start >= total_chars:

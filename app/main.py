@@ -1,6 +1,5 @@
 """
-Doc Reader — GraphRAG + Multilingual + Personalization edition.
-v0.6 — community detection, entity aliases, history memory, user profiling.
+Doc Reader
 """
 from pathlib import Path
 from typing import Optional
