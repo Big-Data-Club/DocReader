@@ -419,12 +419,16 @@ async def query_documents(req: QueryRequest):
     analysis = None
     if req.use_reasoning:
         result   = groq_client.reasoning_query(
-            req.query,
-            "\n\n".join(c["text"] for c in ranked),
+            query=req.query,
+            context="\n\n".join(c["text"] for c in ranked),
             detected_lang=detected_lang,
+            graph_context=graph_context,
+            past_exchanges=past_exchanges,
+            recent_turns=recent_turns,
+            personalization_context=personalization_ctx,
         )
         answer   = result["answer"]
-        analysis = result["analysis"]
+        analysis = result.get("steps") or result.get("analysis")
     else:
         answer = groq_client.rag_answer(
             query=req.query,
@@ -498,9 +502,16 @@ async def query_documents(req: QueryRequest):
             "search_lang":     c.get("search_lang", ""),
         })
 
+    # Extract cot_steps for frontend (list of {title, content})
+    cot_steps = []
+    if req.use_reasoning and isinstance(analysis, list):
+        cot_steps = analysis
+        analysis  = "\n\n".join(f"**{s['title']}**\n{s['content']}" for s in analysis)
+
     return JSONResponse({
         "answer":           answer,
         "analysis":         analysis,
+        "cot_steps":        cot_steps,
         "conversation_id":  conv_id,
         "new_conversation": not req.conversation_id,
         "sources":          sources,

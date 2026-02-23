@@ -311,7 +311,7 @@ def rag_answer(
     model = model or settings.groq_chat_model
 
     context_parts = []
-    for i, c in enumerate(context_chunks[:6]):
+    for i, c in enumerate(context_chunks[:8]):
         meta     = c.get("metadata", {})
         loc      = _fmt_location(meta)
         origin   = " (graph)" if c.get("from_graph") else ""
@@ -359,20 +359,26 @@ def rag_answer(
         lang_instruction = "Respond in English. "
 
     system_prompt = (
-        f"You are a helpful personal document assistant with memory and personalization. "
+        f"You are a knowledgeable personal document assistant with memory and personalization. "
         f"Answer using the document passages and knowledge graph context provided. "
         f"{lang_instruction}"
-        f"Cite passages as [1], [2], etc. "
+        f"ANSWER STRUCTURE — always follow this pattern:\n"
+        f"  1. Opening: 1-2 sentences that directly answer the core question.\n"
+        f"  2. Body: Explain in depth using evidence from the passages. Cite as [1], [2], etc. "
+        f"     Use multiple paragraphs or ## headings for complex multi-part answers. "
+        f"     Translate passages in other languages naturally into the response language.\n"
+        f"  3. Closing: 1 sentence summarizing the key takeaway or implication.\n"
         f"Entity summaries provide background knowledge — use them to enrich answers. "
-        f"If a passage is in a different language, translate its content naturally. "
-        f"Be concise and accurate. Say so if context is insufficient."
+        f"For simple factual questions, 1-2 paragraphs are fine. "
+        f"For analytical or multi-faceted questions, write 3-5+ paragraphs. "
+        f"Never truncate mid-thought. Say so clearly if context is insufficient."
     )
 
     user_prompt = (
         f"Document passages:\n{context}"
         f"{graph_info}{history_hint}{persona_hint}\n\n"
         f"Question: {query}\n\n"
-        f"Answer (cite with [1], [2], etc.):"
+        f"Answer (with citations [1], [2], etc.):"
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -380,7 +386,7 @@ def rag_answer(
         for turn in recent_turns[:-1][-4:]:
             messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": user_prompt})
-    return chat(messages, model=model, temperature=0.1)
+    return chat(messages, model=model, temperature=0.2, max_tokens=4096)
 
 
 def _fmt_location(meta: dict) -> str:
@@ -395,26 +401,230 @@ def _fmt_location(meta: dict) -> str:
 
 # ── Reasoning query ───────────────────────────────────────────────────────────
 
-def reasoning_query(query: str, context: str, detected_lang: str = "en") -> dict:
-    lang_note = "Respond in Vietnamese." if detected_lang == "vi" else "Respond in English."
-    messages  = [
-        {
-            "role":    "system",
-            "content": f"Expert document analyst. Think step by step. {lang_note}\nFormat:\nANALYSIS: [reasoning]\nANSWER: [answer]",
-        },
-        {"role": "user", "content": f"Context:\n{context[:5000]}\n\nQuestion: {query}"},
-    ]
-    resp    = get_client().chat.completions.create(
-        model=settings.groq_chat_model, messages=messages,
-        temperature=0.2, max_tokens=4096,
+def reasoning_query(
+    query: str,
+    context: str,
+    detected_lang: str = "en",
+    graph_context: dict = None,
+    past_exchanges: list = None,
+    recent_turns: list = None,
+    personalization_context: dict = None,
+) -> dict:
+    """
+    Full Chain-of-Thought reasoning pipeline.
+
+    Returns:
+    {
+        "answer":   str,               # Final structured answer
+        "analysis": str,               # Raw CoT text (all steps)
+        "steps":    [{"title", "content"}],  # Parsed steps for frontend
+        "full":     str,
+    }
+
+    CoT format:
+        §STEP1: UNDERSTAND§  ... understand the question and what is being asked
+        §STEP2: EVIDENCE§    ... list relevant evidence from context with [N] citations
+        §STEP3: GAPS§        ... note any missing information or caveats
+        §STEP4: SYNTHESIZE§  ... reason through the answer
+        §ANSWER§             ... final structured answer (intro, body, conclusion)
+    """
+    is_vi = detected_lang == "vi"
+    lang_note = (
+        "Ngôn ngữ trả lời: TIẾNG VIỆT. Cả quá trình suy luận và câu trả lời cuối đều phải bằng tiếng Việt."
+        if is_vi
+        else "Language: ENGLISH. All reasoning steps and final answer must be in English."
     )
-    content  = resp.choices[0].message.content
-    analysis, answer = "", content
-    if "ANALYSIS:" in content and "ANSWER:" in content:
-        parts    = content.split("ANSWER:", 1)
-        analysis = parts[0].replace("ANALYSIS:", "").strip()
-        answer   = parts[1].strip()
-    return {"analysis": analysis, "answer": answer, "full": content}
+
+    graph_info = ""
+    if graph_context:
+        ents = graph_context.get("entities", [])[:6]
+        if ents:
+            graph_info = "\n\nKnowledge graph context:\n" + "\n".join(
+                f"• {e['name']} ({e['type']})" + (f": {e.get('summary','')[:80]}" if e.get("summary") else "")
+                for e in ents
+            )
+        rels = graph_context.get("relations", [])[:4]
+        if rels:
+            graph_info += "\n" + "\n".join(
+                f"  {r.get('from_id','')} → {r.get('relation','')} → {r.get('to_name','')}"
+                for r in rels
+            )
+
+    history_hint = ""
+    if past_exchanges:
+        excerpts = [p["text"][:150] for p in past_exchanges[:2] if p.get("text")]
+        if excerpts:
+            history_hint = "\n\nRelevant past context:\n" + "\n".join(f"- {e}" for e in excerpts)
+
+    persona_hint = ""
+    if personalization_context:
+        ps = personalization_context.get("personalization_str", "")
+        if ps:
+            persona_hint = f"\n\nUser profile: {ps}"
+
+    if is_vi:
+        answer_template = """
+§ANSWER§
+[MỞ ĐẦU — 2-3 câu]
+Trả lời trực tiếp câu hỏi một cách rõ ràng. Đặt vấn đề trong bối cảnh tổng quát nếu cần.
+
+[PHẦN THÂN — chia thành các tiêu đề ## nếu câu hỏi có nhiều khía cạnh, hoặc 3-5 đoạn văn nếu là câu hỏi đơn]
+Mỗi đoạn phát triển một ý chính. Trích dẫn nguồn bằng [1], [2], v.v. sau mỗi khẳng định quan trọng.
+Dùng dữ liệu, số liệu, hoặc ví dụ cụ thể từ tài liệu khi có.
+Giải thích mối quan hệ nhân quả, so sánh, hoặc phân tích chuyên sâu.
+
+[KẾT LUẬN — 2-3 câu]
+Tóm tắt insight quan trọng nhất. Nêu hàm ý hoặc điểm cần lưu ý nếu có.
+"""
+    else:
+        answer_template = """
+§ANSWER§
+[INTRODUCTION — 2-3 sentences]
+Directly answer the question. Frame it in broader context if relevant.
+
+[BODY — use ## headings for multi-faceted questions, or 3-5 paragraphs for focused questions]
+Each paragraph develops one key point. Cite sources as [1], [2], etc. after every key claim.
+Use concrete data, numbers, examples, and quotes from the documents whenever available.
+Explain causal relationships, comparisons, or provide in-depth analysis.
+
+[CONCLUSION — 2-3 sentences]
+Summarize the single most important insight. Note implications or caveats if relevant.
+"""
+
+    system_prompt = f"""You are an expert document analyst. Your job is to reason carefully through documents \
+and then write a thorough, well-structured answer that reads like it was written by a senior analyst or researcher.
+{lang_note}
+
+══════════════════════════════════════════════
+OUTPUT FORMAT — use EXACTLY these markers, each on its own line:
+══════════════════════════════════════════════
+§STEP1: UNDERSTAND§
+§STEP2: EVIDENCE§
+§STEP3: GAPS§
+§STEP4: SYNTHESIZE§
+§ANSWER§
+
+══════════════════════════════════════════════
+STEP INSTRUCTIONS:
+══════════════════════════════════════════════
+
+§STEP1: UNDERSTAND§
+Restate the question in your own words. Identify:
+  - What type of answer is needed (fact / explanation / comparison / analysis / recommendation)
+  - What the user likely wants to know or do with this information
+  - Any ambiguities or edge cases in the question
+
+§STEP2: EVIDENCE§
+Extract ALL relevant information from the provided passages. For each piece:
+  - Quote or paraphrase with [N] citation
+  - Note which aspect of the question it addresses
+  - Flag if the same point is corroborated by multiple sources
+  - Mention relevant entity relationships from the knowledge graph if present
+Be exhaustive — include every passage that could be useful, even tangentially.
+
+§STEP3: GAPS§
+Honestly assess:
+  - What information is NOT present in the documents but would be needed for a complete answer?
+  - Are there contradictions between sources? How should they be resolved?
+  - What assumptions are you making?
+  - What caveats should the reader know?
+
+§STEP4: SYNTHESIZE§
+Build your answer step by step:
+  - Start with what is definitively established by the evidence
+  - Layer in supporting details and context
+  - Resolve any contradictions
+  - Draw connections between different pieces of evidence
+  - Reach a clear, well-reasoned conclusion
+  This is your private reasoning — be thorough and exploratory here.
+
+{answer_template}
+══════════════════════════════════════════════
+ANSWER QUALITY RULES (apply to §ANSWER§ only):
+══════════════════════════════════════════════
+1. NEVER start with "Based on the documents" or "According to the passages" — just state the facts.
+2. Every paragraph must contain at least one [N] citation.
+3. Aim for 400-800 words in the answer section for analytical questions; shorter is OK only for simple factual lookups.
+4. Use concrete specifics (numbers, names, dates, percentages) from the documents — not vague summaries.
+5. Write in flowing prose, not bullet lists, unless the question explicitly asks for a list.
+6. The answer must be SELF-CONTAINED — a reader who hasn't seen the documents should fully understand it."""
+
+    user_content = (
+        f"Document passages (cite as [1], [2], ...):\n{context[:6000]}"
+        f"{graph_info}{history_hint}{persona_hint}\n\n"
+        f"Question: {query}"
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    if recent_turns:
+        for turn in (recent_turns[:-1])[-4:]:
+            messages.append({"role": turn["role"], "content": turn["content"]})
+    messages.append({"role": "user", "content": user_content})
+
+    resp = get_client().chat.completions.create(
+        model=settings.groq_chat_model,
+        messages=messages,
+        temperature=0.3,
+        max_tokens=6000,
+    )
+    content = resp.choices[0].message.content.strip()
+
+    # ── Parse steps ──────────────────────────────────────────────────────────
+    steps = []
+    answer = content  # fallback
+    analysis = ""
+
+    STEP_MARKERS = [
+        ("§STEP1: UNDERSTAND§", "🔍 Understanding the Question"),
+        ("§STEP2: EVIDENCE§",   "📋 Gathering Evidence"),
+        ("§STEP3: GAPS§",       "⚠️ Gaps & Caveats"),
+        ("§STEP4: SYNTHESIZE§", "🔗 Synthesizing"),
+        ("§ANSWER§",            "✅ Final Answer"),
+    ]
+
+    if is_vi:
+        STEP_MARKERS = [
+            ("§STEP1: UNDERSTAND§", "🔍 Phân tích câu hỏi"),
+            ("§STEP2: EVIDENCE§",   "📋 Tìm bằng chứng"),
+            ("§STEP3: GAPS§",       "⚠️ Thiếu sót & Lưu ý"),
+            ("§STEP4: SYNTHESIZE§", "🔗 Tổng hợp"),
+            ("§ANSWER§",            "✅ Câu trả lời"),
+        ]
+
+    positions = []
+    for marker, title in STEP_MARKERS:
+        idx = content.find(marker)
+        if idx != -1:
+            positions.append((idx, marker, title))
+    positions.sort()
+
+    for i, (pos, marker, title) in enumerate(positions):
+        start = pos + len(marker)
+        end   = positions[i + 1][0] if i + 1 < len(positions) else len(content)
+        body  = content[start:end].strip()
+        steps.append({"title": title, "content": body})
+
+    # Separate reasoning (steps 1-4) from answer (step 5)
+    if steps:
+        answer_steps = [s for s in steps if s["title"].startswith(("✅", "🎯"))]
+        cot_steps    = [s for s in steps if not s["title"].startswith(("✅", "🎯"))]
+        answer       = answer_steps[0]["content"] if answer_steps else steps[-1]["content"]
+        analysis     = "\n\n".join(
+            f"**{s['title']}**\n{s['content']}" for s in cot_steps
+        )
+    else:
+        # Fallback: old ANALYSIS/ANSWER split
+        if "ANALYSIS:" in content and "ANSWER:" in content:
+            parts    = content.split("ANSWER:", 1)
+            analysis = parts[0].replace("ANALYSIS:", "").strip()
+            answer   = parts[1].strip()
+
+    return {
+        "answer":   answer,
+        "analysis": analysis,
+        "steps":    steps,          # ← NEW: structured steps for frontend
+        "full":     content,
+    }
 
 
 # ── Structured output ─────────────────────────────────────────────────────────

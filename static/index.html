@@ -81,6 +81,33 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;hei
 .reasoning-block{background:rgba(78,205,196,.05);border:1px solid rgba(78,205,196,.2);border-radius:8px;
   padding:10px;margin-top:8px;font-size:.78rem;color:var(--text2);}
 
+/* ── Chain-of-Thought panel ── */
+.cot-panel{margin-top:10px;border:1px solid rgba(78,205,196,.25);border-radius:10px;overflow:hidden;}
+.cot-header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(78,205,196,.07);
+  cursor:pointer;user-select:none;transition:.15s;}
+.cot-header:hover{background:rgba(78,205,196,.13);}
+.cot-header-label{font-size:.72rem;color:var(--accent2);font-weight:600;flex:1;display:flex;align-items:center;gap:6px;}
+.cot-badge{background:rgba(78,205,196,.15);border:1px solid rgba(78,205,196,.3);
+  border-radius:10px;padding:1px 7px;font-size:.62rem;}
+.cot-chevron{font-size:.65rem;color:var(--accent2);transition:transform .25s;}
+.cot-chevron.open{transform:rotate(180deg);}
+.cot-body{display:none;padding:0 12px 12px;}
+.cot-body.open{display:block;}
+.cot-steps{display:flex;flex-direction:column;gap:0;margin-top:10px;}
+.cot-step{display:flex;gap:0;position:relative;}
+.cot-step:not(:last-child) .cot-step-line{display:block;}
+.cot-step-line{display:none;position:absolute;left:14px;top:28px;bottom:-6px;width:2px;
+  background:linear-gradient(to bottom,rgba(78,205,196,.3),transparent);}
+.cot-step-dot{width:28px;height:28px;border-radius:50%;background:rgba(78,205,196,.1);
+  border:1.5px solid rgba(78,205,196,.4);display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;flex-shrink:0;margin-top:1px;}
+.cot-step.answer .cot-step-dot{background:rgba(124,111,247,.15);border-color:var(--accent);}
+.cot-step-content{flex:1;padding:0 0 16px 10px;}
+.cot-step-title{font-size:.72rem;font-weight:700;color:var(--accent2);margin-bottom:5px;letter-spacing:.3px;}
+.cot-step.answer .cot-step-title{color:var(--accent);}
+.cot-step-body{font-size:.78rem;color:var(--text2);line-height:1.6;white-space:pre-wrap;word-break:break-word;}
+.cot-step-body strong{color:var(--text);}
+
 /* ── Inline citation number in answer text ── */
 .cite-ref{display:inline-flex;align-items:center;justify-content:center;
   background:var(--cite-bg);border:1px solid var(--cite-border);
@@ -645,15 +672,98 @@ async function deleteConv(e, convId) {
 
 // ── Answer text: render [1] [2] citations as clickable badges ─────────────────
 function renderAnswerWithCitations(text, sources) {
-  if (!sources || !sources.length) return `<span>${esc(text)}</span>`;
-  // Replace [N] patterns with clickable badge spans
-  const escaped = esc(text);
-  return escaped.replace(/\[(\d+)\]/g, (match, num) => {
-    const n = parseInt(num);
-    const src = sources.find(s => s.citation_number === n);
-    if (!src) return match;
-    return `<span class="cite-ref" onclick="openPassage('${src.doc_id}',${src.chunk_index},${src.citation_number})" title="Click to view passage from ${esc(src.filename)}">${n}</span>`;
+  if (!text) return '';
+
+  // ── 0. Escape raw text first ─────────────────────────────────────────────
+  const safeText = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // ── 1. Inject clickable citation badges ─────────────────────────────────
+  const withCites = safeText.replace(/\[(\d+)\]/g, (match, num) => {
+    const n   = parseInt(num);
+    const src = sources && sources.find(s => s.citation_number === n);
+    if (!src) return `<span class="cite-ref">${n}</span>`;
+    return `<span class="cite-ref" onclick="openPassage('${src.doc_id}',${src.chunk_index},${src.citation_number})" title="View passage from ${esc(src.filename)}">${n}</span>`;
   });
+
+  // ── 2. Light markdown → HTML ─────────────────────────────────────────────
+  const lines  = withCites.split('\n');
+  const output = [];
+  let inPara   = false;
+
+  const closePara = () => { if (inPara) { output.push('</p>'); inPara = false; } };
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Inline formatting first (bold, italic)
+    line = line
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g,      '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,           '<em>$1</em>')
+      .replace(/`(.+?)`/g,             '<code style="background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;font-size:.85em;">$1</code>');
+
+    // h4 ####
+    if (/^#### /.test(line)) {
+      closePara();
+      output.push(`<h4 style="font-size:.82rem;font-weight:700;color:var(--accent);margin:14px 0 4px;letter-spacing:.3px;text-transform:uppercase;">${line.replace(/^#### /, '')}</h4>`);
+      continue;
+    }
+    // h3 ###
+    if (/^### /.test(line)) {
+      closePara();
+      output.push(`<h3 style="font-size:.9rem;font-weight:700;color:var(--accent);margin:16px 0 6px;border-bottom:1px solid rgba(124,111,247,.2);padding-bottom:4px;">${line.replace(/^### /, '')}</h3>`);
+      continue;
+    }
+    // h2 ##
+    if (/^## /.test(line)) {
+      closePara();
+      output.push(`<h2 style="font-size:1rem;font-weight:700;color:var(--text);margin:20px 0 8px;border-bottom:1px solid var(--border);padding-bottom:6px;">${line.replace(/^## /, '')}</h2>`);
+      continue;
+    }
+    // h1 #
+    if (/^# /.test(line)) {
+      closePara();
+      output.push(`<h1 style="font-size:1.1rem;font-weight:700;color:var(--text);margin:20px 0 10px;">${line.replace(/^# /, '')}</h1>`);
+      continue;
+    }
+    // Bullet list  - or *
+    if (/^[\-\*] /.test(line.trimStart())) {
+      closePara();
+      const indent = line.match(/^(\s*)/)[1].length;
+      const content = line.replace(/^\s*[\-\*] /, '');
+      output.push(`<div style="display:flex;gap:6px;margin:3px 0 3px ${indent * 8}px;"><span style="color:var(--accent);margin-top:2px;flex-shrink:0;">▸</span><span>${content}</span></div>`);
+      continue;
+    }
+    // Numbered list
+    if (/^\d+\. /.test(line.trimStart())) {
+      closePara();
+      const num     = line.match(/^(\d+)\./)[1];
+      const content = line.replace(/^\d+\.\s*/, '');
+      output.push(`<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:var(--accent);font-weight:600;min-width:16px;text-align:right;flex-shrink:0;">${num}.</span><span>${content}</span></div>`);
+      continue;
+    }
+    // Horizontal rule ---
+    if (/^---+$/.test(line.trim())) {
+      closePara();
+      output.push('<hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">');
+      continue;
+    }
+    // Empty line → paragraph break
+    if (line.trim() === '') {
+      closePara();
+      continue;
+    }
+    // Regular text → wrap in <p>
+    if (!inPara) { output.push('<p style="margin:0 0 10px;line-height:1.75;">'); inPara = true; }
+    else         { output.push(' '); }
+    output.push(line);
+  }
+
+  closePara();
+  return output.join('');
 }
 
 // ── Agent pipeline builder ────────────────────────────────────────────────────
@@ -949,8 +1059,13 @@ function buildBubble(m) {
   const pipelineHtml = (!isUser && (meta.query_bundle || meta.retrieval_stats))
     ? buildAgentPipeline(meta, uid) : '';
 
+  // CoT panel (for reasoning mode messages)
+  const cotHtml = (!isUser && meta.cot_steps && meta.cot_steps.length)
+    ? buildCotPanel(meta.cot_steps) : '';
+
   return `<div class="msg ${m.role}">
     <div class="bubble" style="line-height:1.7;">${contentHtml}</div>
+    ${cotHtml}
     ${pipelineHtml}
     ${sourcesHtml}
     <div class="msg-meta">
@@ -991,7 +1106,7 @@ async function sendMessage() {
   input.style.height = 'auto';
 
   const typingId = 'typing-' + Date.now();
-  appendTyping(typingId);
+  appendTyping(typingId, reasoning);
   isSending = true;
   document.getElementById('send-btn').disabled = true;
 
@@ -1024,13 +1139,13 @@ async function sendMessage() {
       metadata: {
         sources: data.sources || [],
         analysis: data.analysis,
+        cot_steps: data.cot_steps || [],
         query_bundle: data.query_bundle,
         retrieval_stats: data.retrieval_stats,
         graph_context: data.graph_context,
         personalization: data.personalization,
       },
     });
-    if (data.analysis) appendAnalysis(data.analysis);
     await loadConversations();
     document.getElementById('toolbar-title').textContent =
       conversations.find(c => c.id === activeConvId)?.title || 'Conversation';
@@ -1053,7 +1168,7 @@ function appendBubble(m) {
   el.appendChild(div.firstElementChild);
   el.scrollTop = el.scrollHeight;
 }
-function appendTyping(id) {
+function appendTyping(id, isReasoning = false) {
   const el = document.getElementById('chat-messages');
   el.insertAdjacentHTML('beforeend', `
     <div id="${id}" class="msg assistant">
@@ -1068,7 +1183,7 @@ function appendTyping(id) {
   el.scrollTop = el.scrollHeight;
 
   // Animate through pipeline steps
-  const steps = [
+  const baseSteps = [
     ['🌐','Detecting language…','lang-vi'],
     ['🔄','Translating query…','lang-en'],
     ['🔀','Expanding queries (VI + EN)…','stat'],
@@ -1079,6 +1194,16 @@ function appendTyping(id) {
     ['⚡','Reranking results…','stat'],
     ['🤖','Generating answer…','stat'],
   ];
+  const cotSteps = [
+    ['🔍','CoT: Understanding question…','cot'],
+    ['📋','CoT: Gathering evidence…','cot'],
+    ['⚠️','CoT: Checking gaps…','cot'],
+    ['🔗','CoT: Synthesizing…','cot'],
+    ['✅','CoT: Writing answer…','cot'],
+  ];
+  const steps = isReasoning
+    ? [...baseSteps.slice(0,7), ...cotSteps]
+    : baseSteps;
   let si = 0;
   const stepsEl = document.getElementById(`${id}-steps`);
   const statusEl = document.getElementById(`${id}-status`);
@@ -1100,12 +1225,63 @@ function appendTyping(id) {
   window[`_typing_iv_${id}`] = iv;
 }
 function appendAnalysis(text) {
+  // Legacy fallback — only called when no structured steps available
   const el = document.getElementById('chat-messages');
   el.insertAdjacentHTML('beforeend', `
     <div class="msg assistant">
       <div class="reasoning-block"><strong style="font-size:.7rem;color:var(--accent2)">💭 REASONING</strong><br>${esc(text)}</div>
     </div>`);
   el.scrollTop = el.scrollHeight;
+}
+
+function buildCotPanel(steps) {
+  if (!steps || !steps.length) return '';
+  const STEP_ICONS = ['🔍','📋','⚠️','🔗','✅'];
+  let stepsHtml = steps.map((s, i) => {
+    const isAnswer = s.title.includes('✅') || s.title.includes('Answer') || s.title.includes('trả lời');
+    const icon = STEP_ICONS[i] || '•';
+    // Use full markdown renderer for answer step, simple renderer for CoT steps
+    const bodyHtml = isAnswer
+      ? renderAnswerWithCitations(s.content, [])
+      : s.content
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\[(\d+)\]/g, '<span class="cite-ref">$1</span>')
+          .replace(/\n\n/g, '</p><p style="margin:6px 0;">')
+          .replace(/\n/g, '<br>');
+    return `
+      <div class="cot-step${isAnswer ? ' answer' : ''}">
+        <div class="cot-step-line"></div>
+        <div class="cot-step-dot">${icon}</div>
+        <div class="cot-step-content">
+          <div class="cot-step-title">${esc(s.title)}</div>
+          <div class="cot-step-body">${isAnswer ? bodyHtml : `<p style="margin:0;">${bodyHtml}</p>`}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const uid = 'cot-' + Date.now();
+  return `
+    <div class="cot-panel" id="${uid}">
+      <div class="cot-header" onclick="toggleCot('${uid}')">
+        <div class="cot-header-label">
+          🧠 Chain of Thought
+          <span class="cot-badge">${steps.length} steps</span>
+        </div>
+        <span class="cot-chevron" id="${uid}-chev">▼</span>
+      </div>
+      <div class="cot-body" id="${uid}-body">
+        <div class="cot-steps">${stepsHtml}</div>
+      </div>
+    </div>`;
+}
+
+function toggleCot(uid) {
+  const body = document.getElementById(uid + '-body');
+  const chev = document.getElementById(uid + '-chev');
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
 }
 
 async function speakLastAnswer() {
