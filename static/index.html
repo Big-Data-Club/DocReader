@@ -348,6 +348,16 @@ pre.json-out{background:var(--surface2);border:1px solid var(--border);border-ra
     <button class="nav-btn" onclick="showTab('tts',this)">🔊 TTS</button>
   </nav>
 
+  <!-- Embedding Model selector -->
+  <div style="padding:8px; border-bottom:1px solid var(--border); flex-shrink:0;">
+    <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.8px; color:var(--text2); margin-bottom:4px; padding-left:4px;">Embedding Model</div>
+    <select id="app-emb-model" style="width:100%; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px; font-size:.70rem; outline:none; transition:.15s; margin-bottom: 2px;">
+      <option value="paraphrase-multilingual-MiniLM-L12-v2">MiniLM-L12-v2 (Dim: 384)</option>
+      <option value="paraphrase-multilingual-mpnet-base-v2">mpnet-base-v2 (Dim: 768)</option>
+      <option value="BAAI/bge-m3">BGE-M3 (Dim: 1024)</option>
+    </select>
+  </div>
+
   <!-- Conversation history list -->
   <div class="conv-section">
     <div class="conv-header">
@@ -535,6 +545,21 @@ pre.json-out{background:var(--surface2);border:1px solid var(--border);border-ra
 
 <script>
 const API = '';
+
+// Override fetch to always send the selected embedding model header
+const originalFetch = window.fetch;
+window.fetch = async function() {
+  let [resource, config] = arguments;
+  if (typeof resource === 'string' && resource.includes('/api/')) {
+    config = config || {};
+    config.headers = config.headers || {};
+    const modelSelect = document.getElementById('app-emb-model');
+    if (modelSelect) {
+      config.headers['X-Embedding-Model'] = modelSelect.value;
+    }
+  }
+  return originalFetch(resource, config);
+};
 let documents = [];
 let conversations = [];
 let activeConvId = null;

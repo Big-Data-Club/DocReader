@@ -12,6 +12,29 @@ from pydantic import BaseModel
 app = FastAPI(title="Doc Reader", version="0.6.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+@app.middleware("http")
+async def extract_embedding_model_header(request, call_next):
+    """
+    Extract dynamic embedding model
+
+    Note: Update from Hatakekksheeshh
+    """
+    from app.vectorstore import current_model_context
+    from app.config import settings
+    
+    model_header = request.headers.get("x-embedding-model")
+    
+    if model_header:
+        token = current_model_context.set(model_header)
+    else:
+        token = current_model_context.set(settings.embedding_model)
+        
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        current_model_context.reset(token)
+
 
 # ── Models ────────────────────────────────────────────────────────────────────
 

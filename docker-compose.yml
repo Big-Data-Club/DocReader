@@ -13,7 +13,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,8 +33,11 @@ services:
         condition: service_healthy
     volumes:
       - app_data:/app/data
+      - hf_cache:/root/.cache/huggingface # Update from Hatakekksheeshh: Mount HuggingFace cache to persist massive embedding models between restarts
+      - ./static:/app/static # Update from Hatakekksheeshh: hot-reload
     restart: unless-stopped
 
 volumes:
   minio_data:
   app_data:
+  hf_cache:
