@@ -16,8 +16,14 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from app.config import settings
 
+# Update from Hatakekksheeshh: dynamic embedding context support
+# Context variable to hold the requested model name for the current request
+from contextvars import ContextVar
+from functools import lru_cache
+current_model_context: ContextVar[str] = ContextVar("current_model_context", default="")
+
 _chroma_client   = None
-_embedding_model = None
+# _embedding_model = None
 
 # ── Embedding model ───────────────────────────────────────────────────────────
 
@@ -28,23 +34,56 @@ def get_chroma_client() -> chromadb.PersistentClient:
     return _chroma_client
 
 
-def get_embedding_model() -> SentenceTransformer:
-    global _embedding_model
-    if _embedding_model is None:
-        print(f"Loading embedding model: {settings.embedding_model}")
-        _embedding_model = SentenceTransformer(settings.embedding_model)
-    return _embedding_model
+@lru_cache(maxsize=3)
+def _load_sentence_transformer(model_name: str) -> SentenceTransformer:
+    """
+    Load models into LRU cache to prevent memory explosion
+
+    Note: Update from Hatakekksheeshh
+    """
+    print(f"Loading embedding model into memory: {model_name}")
+    return SentenceTransformer(model_name)
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
-    return get_embedding_model().encode(texts, show_progress_bar=False).tolist()
+def get_embedding_model(model_name: str = None) -> SentenceTransformer:
+    if not model_name:
+        model_name = current_model_context.get() or settings.embedding_model
+    return _load_sentence_transformer(model_name)
+
+
+def embed_texts(texts: list[str], model_name: str = None) -> list[list[float]]:
+    """
+    Dynamically load embedding models
+
+    Note: Update from Hatakekksheeshh
+    """
+    if not model_name:
+        model_name = current_model_context.get() or settings.embedding_model
+    model = get_embedding_model(model_name)
+    return model.encode(texts, show_progress_bar=False).tolist()
 
 
 # ── Collections ───────────────────────────────────────────────────────────────
+def format_collection_name(base_name: str, model_name: str) -> str:
+    """
+    Create the name for the newly collection properly
+
+    Note: Update from Hatakekksheeshh
+    """
+    safe_model = model_name.replace("/", "_").replace("-", "_").lower()
+    return f"{base_name}_{safe_model}"
+
 
 def get_collection(name: str = "documents"):
+    """
+    Parse dynamic context
+
+    Note: Update from Hatakekksheeshh
+    """
+    model_name = current_model_context.get() or settings.embedding_model
+    col_name = format_collection_name(name, model_name)
     return get_chroma_client().get_or_create_collection(
-        name=name, metadata={"hnsw:space": "cosine"},
+        name=col_name, metadata={"hnsw:space": "cosine"}
     )
 
 
@@ -53,8 +92,11 @@ def get_questions_collection():
     Separate collection for hypothetical questions per chunk (both languages).
     Queries matched here benefit from question-to-question embedding alignment.
     """
+    # Update from Hatakekksheeshh: Parse dynamic context
+    model_name = current_model_context.get() or settings.embedding_model
+    col_name = format_collection_name("chunk_questions", model_name)
     return get_chroma_client().get_or_create_collection(
-        name="chunk_questions", metadata={"hnsw:space": "cosine"},
+        name=col_name, metadata={"hnsw:space": "cosine"},
     )
 
 

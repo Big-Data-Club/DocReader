@@ -21,7 +21,9 @@ COPY static/ ./static/
 RUN uv pip install --system --no-cache .
 
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')"
-
+# Update from Hatakekksheeshh: preload
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-mpnet-base-v2')"
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
 RUN mkdir -p /app/data/chroma /app/data/kuzu
 
 EXPOSE 8000
